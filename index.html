@@ -55,39 +55,23 @@
         .input-modern { background: #0a0a0a; border: 1px solid #333; color: white; border-radius: 12px; transition: all 0.2s; }
         .input-modern:focus { border-color: #ef4444; outline: none; }
         
-        /* Nav */
-        #global-nav { position: sticky; top: 0; z-index: 50; height: 56px; background: rgba(5,5,5,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .g-logo { color: #fff; font-weight: 900; font-size: 1rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; text-decoration: none; }
-        .g-logo:hover { color: #ef4444; transition: color 0.3s; }
-        .g-links { display: flex; align-items: center; gap: 20px; }
-        .g-link { color: #71717a; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; transition: color 0.2s; }
-        .g-link:hover { color: #fff; }
-        .g-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
-        
         /* Toast */
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
         .toast { background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 30px; border: 1px solid #333; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 10px; animation: fadeIn 0.3s forwards; pointer-events: auto; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
-
-    <!-- NAV SUPERIOR -->
-    <nav id="global-nav" class="flex items-center justify-between px-5 shrink-0">
-        <a href="https://godsplan.site" class="g-logo"><i class="ph-bold ph-circles-three-plus text-lg"></i> God's Plan</a>
-        <div class="g-links">
-            <a href="#" class="g-link active">CUENTA</a>
-            <!-- Links a otras apps del ecosistema -->
-            <a href="https://finanzas.godsplan.site" class="g-link">FINANZAS</a>
-        </div>
-    </nav>
+<body class="flex flex-col min-h-screen justify-center items-center p-4">
 
     <!-- CONTENIDO -->
-    <main class="flex-1 p-6 max-w-lg mx-auto w-full flex flex-col justify-center">
+    <main class="w-full max-w-md">
         
         <header class="mb-8 text-center" id="mainHeader">
+            <div class="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 border border-white/10">
+                <i class="ph-duotone ph-fingerprint text-3xl text-white"></i>
+            </div>
             <h1 class="text-3xl font-black text-white mb-2">Cuenta Universal</h1>
-            <p class="text-zinc-500 text-sm">Gestiona tu identidad para todo el ecosistema.</p>
+            <p class="text-zinc-500 text-sm">Gestiona tu acceso y seguridad.</p>
         </header>
 
         <!-- CARGA -->
@@ -107,9 +91,7 @@
 
                 <div class="space-y-4">
                     <input type="email" id="authEmail" class="input-modern w-full p-4" placeholder="Correo electrónico">
-                    <div>
-                        <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
-                    </div>
+                    <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
                     
                     <button onclick="accountApp.handleAuth()" id="btnAuthAction" class="w-full bg-white text-black font-black py-4 rounded-xl hover:scale-[1.02] transition-transform">
                         ENTRAR
@@ -131,81 +113,67 @@
         <!-- 2. PANEL DE GESTIÓN (Logueado) -->
         <div id="accountPanel" class="hidden space-y-6">
             
-            <!-- TARJETA DE PERFIL -->
-            <div class="glass p-6 rounded-3xl flex items-center gap-5 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-20">
-                    <i class="ph-duotone ph-fingerprint text-6xl text-white"></i>
+            <!-- TARJETA DE PERFIL SIMPLIFICADA -->
+            <div class="flex items-center gap-4 px-2">
+                <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 shrink-0">
+                    <span id="avatarText" class="text-xl font-black text-white">?</span>
                 </div>
-                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center border-2 border-black shadow-lg relative z-10">
-                    <span id="avatarText" class="text-2xl font-black text-white">?</span>
+                <div class="overflow-hidden">
+                    <h2 id="displayNameDisplay" class="text-lg font-bold text-white truncate">Usuario</h2>
+                    <p id="emailDisplay" class="text-xs text-zinc-500 font-mono truncate">...</p>
                 </div>
+            </div>
+
+            <!-- CAMBIO DE CONTRASEÑA (PRINCIPAL) -->
+            <div class="glass p-6 rounded-3xl border-l-4 border-l-emerald-500 relative overflow-hidden">
                 <div class="relative z-10">
-                    <h2 id="displayNameDisplay" class="text-xl font-bold text-white">Usuario</h2>
-                    <p id="emailDisplay" class="text-xs text-zinc-300 font-mono">...</p>
-                    <div id="providerBadges" class="flex gap-1 mt-2">
-                        <!-- Badges inyectados via JS -->
+                    <div class="mb-5">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                            <i class="ph-fill ph-lock-key text-emerald-500"></i> Nueva Contraseña
+                        </h3>
+                        <p class="text-xs text-zinc-400">Escribe tu nueva contraseña abajo para actualizarla inmediatamente.</p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <input type="password" id="inpNewPass" class="input-modern w-full p-4 text-sm bg-black/50 border-zinc-700 focus:border-emerald-500" placeholder="Mínimo 6 caracteres">
+                        
+                        <button onclick="accountApp.changePassword()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-900/20 text-xs tracking-wide">
+                            ACTUALIZAR AHORA
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- VINCULACIÓN DE CUENTAS (LINKING) -->
-            <div class="space-y-3">
-                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Métodos de Acceso</h3>
-                
-                <!-- Estado Google -->
-                <div class="glass p-4 rounded-2xl flex justify-between items-center" id="googleLinkCard">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center"><i class="ph-bold ph-google-logo"></i></div>
-                        <div>
-                            <div class="text-sm font-bold text-white">Cuenta Google</div>
-                            <div class="text-[10px] text-zinc-500" id="googleStatusText">No vinculado</div>
-                        </div>
-                    </div>
-                    <button id="btnLinkGoogle" onclick="accountApp.linkGoogle()" class="text-[10px] font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-3 py-1.5 rounded-lg transition-colors">
-                        VINCULAR
-                    </button>
-                </div>
+            <!-- OTROS AJUSTES -->
+            <div class="space-y-3 pt-2">
+                <h3 class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2">Otras Opciones</h3>
 
-                <!-- Estado Contraseña -->
-                <div class="glass p-4 rounded-2xl flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center"><i class="ph-bold ph-password"></i></div>
-                        <div>
-                            <div class="text-sm font-bold text-white">Contraseña</div>
-                            <div class="text-[10px] text-zinc-500">Acceso clásico</div>
-                        </div>
-                    </div>
-                    <!-- Siempre permitimos cambiar/establecer contraseña -->
-                    <button onclick="document.getElementById('passSection').classList.remove('hidden')" class="text-[10px] font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-3 py-1.5 rounded-lg transition-colors">
-                        GESTIONAR
-                    </button>
-                </div>
-            </div>
-
-            <!-- EDICIÓN PERFIL -->
-            <div class="space-y-4 pt-4 border-t border-zinc-800">
-                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Datos Públicos</h3>
+                <!-- Editar Nombre -->
                 <div class="flex gap-2">
-                    <input type="text" id="inpName" class="input-modern w-full p-3 pl-4 text-sm" placeholder="Nombre visible">
-                    <button onclick="accountApp.updateName()" class="bg-white text-black font-bold px-4 rounded-xl hover:scale-105 transition-transform text-xs">
-                        OK
+                    <input type="text" id="inpName" class="input-modern w-full p-3 pl-4 text-sm bg-zinc-900/50" placeholder="Nombre visible">
+                    <button onclick="accountApp.updateName()" class="bg-zinc-800 border border-zinc-700 hover:bg-white hover:text-black text-white px-4 rounded-xl transition-colors font-bold text-xs">
+                        GUARDAR
                     </button>
                 </div>
-            </div>
 
-            <!-- SECCIÓN OCULTA: CAMBIAR PASSWORD -->
-            <div id="passSection" class="hidden glass p-4 rounded-2xl border-l-4 border-l-indigo-500 animation-fade-in">
-                <h4 class="text-sm font-bold text-white mb-2">Nueva Contraseña</h4>
-                <input type="password" id="inpNewPass" class="input-modern w-full p-3 mb-2 text-sm" placeholder="Mínimo 6 caracteres">
-                <div class="flex gap-2">
-                    <button onclick="accountApp.changePassword()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg transition-colors">ACTUALIZAR</button>
-                    <button onclick="document.getElementById('passSection').classList.add('hidden')" class="px-3 bg-zinc-800 text-zinc-400 text-xs font-bold rounded-lg hover:text-white">CANCELAR</button>
+                <!-- Vincular Google -->
+                <div id="googleLinkCard" class="flex justify-between items-center px-4 py-3 rounded-xl bg-zinc-900/30 border border-white/5">
+                    <div class="flex items-center gap-3">
+                        <i class="ph-bold ph-google-logo text-zinc-400"></i>
+                        <span class="text-xs font-bold text-zinc-300">Cuenta Google</span>
+                    </div>
+                    <button id="btnLinkGoogle" onclick="accountApp.linkGoogle()" class="text-[10px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-wider">
+                        Vincular
+                    </button>
+                    <span id="googleStatusText" class="text-[10px] font-bold text-emerald-500 hidden uppercase tracking-wider flex items-center gap-1">
+                        <i class="ph-bold ph-check"></i> Vinculado
+                    </span>
                 </div>
             </div>
 
             <!-- LOGOUT -->
             <div class="pt-6">
-                <button onclick="accountApp.logout()" class="w-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
+                <button onclick="accountApp.logout()" class="w-full text-zinc-500 hover:text-red-500 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-red-500/20 hover:bg-red-500/10 rounded-xl">
                     <i class="ph-bold ph-sign-out"></i> CERRAR SESIÓN
                 </button>
             </div>
@@ -283,7 +251,8 @@
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('authPanel').classList.add('hidden');
                 document.getElementById('accountPanel').classList.remove('hidden');
-                // Opcional: Ocultar header grande en vista de cuenta para más espacio
+                
+                // Ocultar header grande para dar foco al panel de gestión
                 // document.getElementById('mainHeader').classList.add('hidden');
 
                 const u = this.user;
@@ -295,29 +264,20 @@
                 document.getElementById('emailDisplay').textContent = u.email;
                 document.getElementById('inpName').value = displayName;
 
-                // Detectar proveedores vinculados
+                // Detectar proveedores
                 const providers = u.providerData.map(p => p.providerId);
                 const hasGoogle = providers.includes('google.com');
-                const hasPassword = providers.includes('password');
 
-                // Badges
-                const badgesContainer = document.getElementById('providerBadges');
-                badgesContainer.innerHTML = '';
-                if(hasGoogle) badgesContainer.innerHTML += `<span class="px-1.5 py-0.5 rounded bg-white text-black text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-google-logo"></i> Google</span>`;
-                if(hasPassword) badgesContainer.innerHTML += `<span class="px-1.5 py-0.5 rounded bg-zinc-800 text-white text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-key"></i> Pass</span>`;
-
-                // Botón Vincular Google
+                // Estado Google
                 const btnLinkGoogle = document.getElementById('btnLinkGoogle');
                 const googleStatus = document.getElementById('googleStatusText');
                 
                 if (hasGoogle) {
                     btnLinkGoogle.classList.add('hidden');
-                    googleStatus.textContent = 'Vinculado correctamente';
-                    googleStatus.className = 'text-[10px] text-emerald-500 font-bold';
+                    googleStatus.classList.remove('hidden');
                 } else {
                     btnLinkGoogle.classList.remove('hidden');
-                    googleStatus.textContent = 'No vinculado';
-                    googleStatus.className = 'text-[10px] text-zinc-500';
+                    googleStatus.classList.add('hidden');
                 }
             },
 
@@ -382,7 +342,6 @@
                 try {
                     await linkWithPopup(this.user, provider);
                     this.toast('¡Cuenta de Google vinculada con éxito!', 'success');
-                    // Forzar refresh visual
                     this.renderAccount(); 
                 } catch(e) {
                     console.error(e);
@@ -409,16 +368,11 @@
 
                 try {
                     await updatePassword(this.user, newPass);
-                    this.toast('Contraseña actualizada/establecida', 'success');
-                    document.getElementById('passSection').classList.add('hidden');
-                    // Si el usuario era solo de Google, ahora tiene password también.
-                    // Recargar pagina para actualizar badges providers es una opción, 
-                    // o llamar a renderAccount si el objeto user se actualizó en vivo (Firebase suele hacerlo).
-                    // Para asegurar, re-obtenemos token o esperamos. Normalmente providerData se actualiza.
-                    this.renderAccount();
+                    this.toast('¡Contraseña actualizada con éxito!', 'success');
+                    document.getElementById('inpNewPass').value = ''; // Limpiar campo
                 } catch(e) {
                     if (e.code === 'auth/requires-recent-login') {
-                        this.toast('Por seguridad, cierra sesión y vuelve a entrar.', 'error');
+                        this.toast('Por seguridad, cierra sesión y vuelve a entrar para cambiar la contraseña.', 'error');
                     } else {
                         this.toast('Error: ' + e.message, 'error');
                     }
