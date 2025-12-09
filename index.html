@@ -13,7 +13,6 @@
     <!-- FIREBASE MODULAR -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // IMPORTAMOS FUNCIONES DE LOGIN Y VINCULACIÓN
         import { 
             getAuth, 
             onAuthStateChanged, 
@@ -25,13 +24,14 @@
             signInWithPopup, 
             GoogleAuthProvider,
             linkWithPopup,
-            signInWithCustomToken 
+            signInWithCustomToken,
+            sendPasswordResetEmail 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         
         window.firebaseImports = { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
-            GoogleAuthProvider, linkWithPopup, signInWithCustomToken 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail 
         };
     </script>
     
@@ -90,8 +90,18 @@
                 </div>
 
                 <div class="space-y-4">
-                    <input type="email" id="authEmail" class="input-modern w-full p-4" placeholder="Correo electrónico">
-                    <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
+                    <!-- FIX: Placeholder actualizado para aceptar ID -->
+                    <input type="text" id="authInput" class="input-modern w-full p-4" placeholder="Correo electrónico o ID de Usuario">
+                    
+                    <div>
+                        <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
+                        <!-- OPCIÓN RECUPERAR CONTRASEÑA -->
+                        <div class="text-right mt-2 hidden" id="forgotPassContainer">
+                            <button onclick="accountApp.recoverPassword()" class="text-[10px] text-zinc-500 hover:text-white transition-colors font-bold underline decoration-zinc-700 underline-offset-4 flex items-center justify-end gap-1 w-full">
+                                <i class="ph-bold ph-life-buoy"></i> ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
+                    </div>
                     
                     <button onclick="accountApp.handleAuth()" id="btnAuthAction" class="w-full bg-white text-black font-black py-4 rounded-xl hover:scale-[1.02] transition-transform">
                         ENTRAR
@@ -188,7 +198,7 @@
         const { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
-            GoogleAuthProvider, linkWithPopup, signInWithCustomToken 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail 
         } = window.firebaseImports;
 
         // Configuración segura
@@ -214,6 +224,9 @@
             auth = getAuth(app);
         } catch(e) { console.error("Firebase Init Error", e); }
 
+        // --- ADMIN CONTACT CONFIG ---
+        const ADMIN_EMAIL = "tizorplayer@gmail.com"; // Cambia esto por tu correo real donde recibirás las solicitudes
+
         // App Logic
         window.accountApp = {
             user: null,
@@ -222,6 +235,9 @@
             init() {
                 if(!auth) return;
                 
+                // Mostrar "Olvidé mi contraseña" por defecto en modo login
+                this.toggleAuthMode('login');
+
                 onAuthStateChanged(auth, async (u) => {
                     if (!u) {
                         // Check token environment only once
@@ -252,9 +268,6 @@
                 document.getElementById('authPanel').classList.add('hidden');
                 document.getElementById('accountPanel').classList.remove('hidden');
                 
-                // Ocultar header grande para dar foco al panel de gestión
-                // document.getElementById('mainHeader').classList.add('hidden');
-
                 const u = this.user;
                 const displayName = u.displayName || 'Usuario';
                 
@@ -288,28 +301,41 @@
                 const btn = document.getElementById('btnAuthAction');
                 const tabLogin = document.getElementById('tabLogin');
                 const tabRegister = document.getElementById('tabRegister');
+                const forgotBtn = document.getElementById('forgotPassContainer');
 
                 if (mode === 'login') {
                     btn.textContent = 'ENTRAR';
                     tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
                     tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
+                    forgotBtn.classList.remove('hidden');
                 } else {
                     btn.textContent = 'REGISTRARME';
                     tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
                     tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
+                    forgotBtn.classList.add('hidden');
                 }
             },
 
             async handleAuth() {
-                const email = document.getElementById('authEmail').value;
+                // authInput ahora puede ser email o ID
+                const inputVal = document.getElementById('authInput').value.trim();
                 const pass = document.getElementById('authPass').value;
 
-                if (!email || !pass) return this.toast('Completa los campos', 'error');
+                if (!inputVal || !pass) return this.toast('Completa los campos', 'error');
+
+                // Si no tiene @, asumimos que es un ID y tratamos de construir el email dummy
+                // OJO: Esto depende de cómo crees los usuarios. Si usas correos reales, esto es un fallback.
+                let email = inputVal;
+                if (!email.includes('@')) {
+                    // Si tienes una convención de correos falsos (ej. 2000@godsplan.local)
+                    // email = `${inputVal}@godsplan.local`; 
+                    // Si no, asumimos que el usuario intentó poner un ID pero el login requiere email
+                    // En este caso, simplemente intentamos usarlo tal cual por si acaso.
+                }
 
                 try {
                     if (this.authMode === 'login') {
                         await signInWithEmailAndPassword(auth, email, pass);
-                        // El listener onAuthStateChanged manejará la redirección
                     } else {
                         await createUserWithEmailAndPassword(auth, email, pass);
                         this.toast('¡Cuenta creada!', 'success');
@@ -317,11 +343,38 @@
                 } catch(e) {
                     console.error(e);
                     let msg = 'Error de autenticación';
-                    if (e.code === 'auth/email-already-in-use') msg = 'El correo ya está registrado';
+                    if (e.code === 'auth/email-already-in-use') msg = 'Este ID/Correo ya está registrado';
                     if (e.code === 'auth/wrong-password') msg = 'Contraseña incorrecta';
                     if (e.code === 'auth/user-not-found') msg = 'Usuario no encontrado';
-                    if (e.code === 'auth/weak-password') msg = 'La contraseña es muy débil';
+                    if (e.code === 'auth/invalid-email') msg = 'Formato de correo o ID inválido';
                     this.toast(msg, 'error');
+                }
+            },
+
+            async recoverPassword() {
+                const inputVal = document.getElementById('authInput').value.trim();
+                if (!inputVal) return this.toast('Escribe tu Correo o ID arriba para solicitar ayuda', 'error');
+
+                const isEmail = inputVal.includes('@');
+
+                if (isEmail) {
+                    // Flujo Estándar (Correo Real)
+                    try {
+                        await sendPasswordResetEmail(auth, inputVal);
+                        this.toast('Correo de recuperación enviado. Revisa tu bandeja.', 'success');
+                    } catch(e) {
+                        if (e.code === 'auth/user-not-found') this.toast('No existe cuenta con este correo', 'error');
+                        else this.toast('Error al enviar correo', 'error');
+                    }
+                } else {
+                    // Flujo Soporte (ID Ficticio)
+                    const confirmSupport = confirm(`¿Quieres contactar a soporte para restablecer la contraseña del usuario "${inputVal}"? Se abrirá tu correo.`);
+                    
+                    if (confirmSupport) {
+                        const subject = `Soporte: Recuperar Contraseña - Usuario ${inputVal}`;
+                        const body = `Hola Admin,\n\nSoy el usuario con ID: ${inputVal}.\nOlvidé mi contraseña y no tengo acceso al correo vinculado.\nPor favor, envíame instrucciones para restablecerla.\n\nGracias.`;
+                        window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    }
                 }
             },
 
@@ -369,10 +422,10 @@
                 try {
                     await updatePassword(this.user, newPass);
                     this.toast('¡Contraseña actualizada con éxito!', 'success');
-                    document.getElementById('inpNewPass').value = ''; // Limpiar campo
+                    document.getElementById('inpNewPass').value = ''; 
                 } catch(e) {
                     if (e.code === 'auth/requires-recent-login') {
-                        this.toast('Por seguridad, cierra sesión y vuelve a entrar para cambiar la contraseña.', 'error');
+                        this.toast('Por seguridad, cierra sesión y vuelve a entrar.', 'error');
                     } else {
                         this.toast('Error: ' + e.message, 'error');
                     }
@@ -402,3 +455,4 @@
     </script>
 </body>
 </html>
+
