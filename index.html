@@ -390,85 +390,46 @@
                 const newUid = document.getElementById('migNewUid').value.trim();
                 if(!oldUid || !newUid) return this.toast('Faltan UIDs', 'error');
 
-                this.toast('Iniciando búsqueda de datos...', 'info');
+                this.toast('Iniciando búsqueda en colección RAÍZ godsPlanData...', 'info');
 
-                // Posibles App IDs donde podrían estar los datos
-                const possibleAppIds = [appId, 'godsplan-local', '1:458198314028:web:d62b24cee2d19ee5b47589'];
-                // NUEVO: Posibles nombres de colección (incluyendo la nueva que mencionaste)
-                const possibleCollections = ['users', 'godsPlanData']; 
-                
-                let sourceAppId = null;
-                let sourceCollection = null;
-                let userData = null;
-
-                // 1. Buscar Documento Padre (Configuración)
-                // Búsqueda exhaustiva: por cada AppId, buscar en cada Colección posible
-                outerLoop:
-                for (const tryId of possibleAppIds) {
-                    for (const colName of possibleCollections) {
-                        try {
-                            const ref = doc(db, 'artifacts', tryId, colName, oldUid);
-                            const snap = await getDoc(ref);
-                            if (snap.exists()) {
-                                sourceAppId = tryId;
-                                sourceCollection = colName;
-                                userData = snap.data();
-                                console.log(`Datos encontrados en AppID: ${tryId}, Colección: ${colName}`);
-                                break outerLoop; 
-                            }
-                        } catch(e) { console.warn(`Fallo lectura en ${tryId}/${colName}`, e); }
-                    }
-                }
-
-                if (!sourceAppId) {
-                    console.warn("No se encontró documento padre. Intentando buscar logs directamente...");
-                }
-
-                const targetAppId = appId; // Siempre escribimos en el entorno actual
-                // NUEVO: Usamos la misma colección de origen o default 'godsPlanData' para el destino si se prefiere
+                const targetAppId = appId; 
+                // Definimos la colección de destino explícitamente a la raíz 'godsPlanData' para que coincida con la estructura antigua
                 const targetCollection = 'godsPlanData'; 
                 const batch = writeBatch(db);
                 let opsCount = 0;
 
                 try {
-                    // 2. Migrar Configuración (Si existe)
-                    if (userData) {
-                        const newUserRef = doc(db, 'artifacts', targetAppId, targetCollection, newUid);
-                        batch.set(newUserRef, userData, { merge: true });
+                    // 1. Migrar Configuración (Documento Padre en Raíz)
+                    // Buscar en la raíz directamente
+                    const oldUserRef = doc(db, 'godsPlanData', oldUid);
+                    const oldSnap = await getDoc(oldUserRef);
+                    
+                    if (oldSnap.exists()) {
+                        console.log("Datos encontrados en godsPlanData raíz");
+                        const newUserRef = doc(db, 'godsPlanData', newUid); // Escribir en raíz también
+                        batch.set(newUserRef, oldSnap.data(), { merge: true });
                         opsCount++;
+                    } else {
+                        console.warn("No se encontró documento padre en raíz. Buscando logs...");
                     }
 
-                    // 3. Migrar Logs (Búsqueda profunda)
-                    // Si no encontramos config padre, buscamos logs en todas las combinaciones posibles
-                    let logsFound = false;
-
-                    // Si ya encontramos el origen del padre, empezamos buscando logs ahí. Si no, buscamos en todo.
-                    const appsToSearch = sourceAppId ? [sourceAppId] : possibleAppIds;
-                    const colsToSearch = sourceCollection ? [sourceCollection] : possibleCollections;
-
-                    logsLoop:
-                    for (const tryId of appsToSearch) {
-                        for (const colName of colsToSearch) {
-                            const oldLogsRef = collection(db, 'artifacts', tryId, colName, oldUid, 'logs');
-                            const logsSnap = await getDocs(oldLogsRef);
-                            
-                            if (!logsSnap.empty) {
-                                console.log(`Logs encontrados en ${tryId}/${colName}: ${logsSnap.size}`);
-                                const newLogsRef = collection(db, 'artifacts', targetAppId, targetCollection, newUid, 'logs');
-                                
-                                logsSnap.forEach(log => {
-                                    const newLogRef = doc(newLogsRef); 
-                                    batch.set(newLogRef, log.data());
-                                    opsCount++;
-                                });
-                                logsFound = true;
-                                break logsLoop; 
-                            }
-                        }
+                    // 2. Migrar Logs (Subcolección en Raíz)
+                    const oldLogsRef = collection(db, 'godsPlanData', oldUid, 'logs');
+                    const logsSnap = await getDocs(oldLogsRef);
+                    
+                    if (!logsSnap.empty) {
+                        console.log(`Logs encontrados en raíz: ${logsSnap.size}`);
+                        const newLogsRef = collection(db, 'godsPlanData', newUid, 'logs');
+                        
+                        logsSnap.forEach(log => {
+                            const newLogRef = doc(newLogsRef); 
+                            batch.set(newLogRef, log.data());
+                            opsCount++;
+                        });
                     }
 
                     if (opsCount === 0) {
-                        return this.toast('No se encontraron datos ni logs en ninguna ruta probable.', 'error');
+                        return this.toast('No se encontraron datos en godsPlanData (raíz).', 'error');
                     }
 
                     await batch.commit();
