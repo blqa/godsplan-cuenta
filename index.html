@@ -28,10 +28,14 @@
             sendPasswordResetEmail 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         
+        // Importamos Firestore
+        import { getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
         window.firebaseImports = { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
-            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail,
+            getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc
         };
     </script>
     
@@ -90,7 +94,6 @@
                 </div>
 
                 <div class="space-y-4">
-                    <!-- FIX: Placeholder actualizado para aceptar ID -->
                     <input type="text" id="authInput" class="input-modern w-full p-4" placeholder="Correo electrónico o ID de Usuario">
                     
                     <div>
@@ -133,6 +136,23 @@
                     <p id="emailDisplay" class="text-xs text-zinc-500 font-mono truncate">...</p>
                 </div>
             </div>
+
+            <!-- === ZONA ADMIN (SOLO VISIBLE PARA ADMIN) === -->
+            <div id="adminPanel" class="hidden glass p-5 rounded-3xl border border-red-900/50 bg-red-950/10">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2">
+                        <i class="ph-fill ph-crown"></i> Solicitudes de Ayuda
+                    </h3>
+                    <button onclick="accountApp.loadSupportTickets()" class="text-red-400 hover:text-white">
+                        <i class="ph-bold ph-arrows-clockwise"></i>
+                    </button>
+                </div>
+                
+                <div id="supportTicketsList" class="space-y-2">
+                    <div class="text-center py-4 text-zinc-600 text-xs">Cargando tickets...</div>
+                </div>
+            </div>
+            <!-- ============================================ -->
 
             <!-- CAMBIO DE CONTRASEÑA (PRINCIPAL) -->
             <div class="glass p-6 rounded-3xl border-l-4 border-l-emerald-500 relative overflow-hidden">
@@ -198,7 +218,8 @@
         const { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
-            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail,
+            getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc
         } = window.firebaseImports;
 
         // Configuración segura
@@ -216,31 +237,30 @@
         } catch(e) { console.error(e); }
 
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'godsplan-local';
 
         // Init Firebase
-        let app, auth;
+        let app, auth, db;
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
+            db = getFirestore(app);
         } catch(e) { console.error("Firebase Init Error", e); }
 
-        // --- ADMIN CONTACT CONFIG ---
-        const ADMIN_EMAIL = "tizorplayer@gmail.com"; // Cambia esto por tu correo real donde recibirás las solicitudes
+        // --- ADMIN CONFIG ---
+        const ADMIN_EMAIL = "tizorplayer@gmail.com"; 
 
         // App Logic
         window.accountApp = {
             user: null,
-            authMode: 'login', // 'login' | 'register'
+            authMode: 'login',
 
             init() {
                 if(!auth) return;
-                
-                // Mostrar "Olvidé mi contraseña" por defecto en modo login
                 this.toggleAuthMode('login');
 
                 onAuthStateChanged(auth, async (u) => {
                     if (!u) {
-                        // Check token environment only once
                         if (initialAuthToken && !window.tokenTried) {
                             window.tokenTried = true;
                             try { await signInWithCustomToken(auth, initialAuthToken); return; } 
@@ -250,8 +270,69 @@
                     } else {
                         this.user = u;
                         this.renderAccount();
+                        // Si es el admin, cargar tickets
+                        if (u.email === ADMIN_EMAIL) {
+                            document.getElementById('adminPanel').classList.remove('hidden');
+                            this.loadSupportTickets();
+                        } else {
+                            document.getElementById('adminPanel').classList.add('hidden');
+                        }
                     }
                 });
+            },
+
+            // --- ADMIN LOGIC ---
+            async loadSupportTickets() {
+                const list = document.getElementById('supportTicketsList');
+                list.innerHTML = '<div class="text-center py-2 text-zinc-500 animate-pulse">Buscando solicitudes...</div>';
+
+                try {
+                    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'support_requests'), where('status', '==', 'pending'));
+                    const snapshot = await getDocs(q);
+                    
+                    list.innerHTML = '';
+                    if (snapshot.empty) {
+                        list.innerHTML = '<div class="text-center py-2 text-zinc-500 text-[10px]">No hay solicitudes pendientes.</div>';
+                        return;
+                    }
+
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        const date = new Date(data.createdAt).toLocaleDateString();
+                        
+                        list.innerHTML += `
+                            <div class="bg-black/40 border border-red-900/30 p-3 rounded-xl flex justify-between items-center">
+                                <div>
+                                    <div class="text-xs font-bold text-white flex items-center gap-2">
+                                        <i class="ph-bold ph-user text-red-400"></i> ${data.userIdentifier}
+                                    </div>
+                                    <div class="text-[10px] text-zinc-500">${date} - Recuperar Pass</div>
+                                </div>
+                                <button onclick="accountApp.resolveTicket('${docSnap.id}', '${data.userIdentifier}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors">
+                                    RESUELTO
+                                </button>
+                            </div>
+                        `;
+                    });
+
+                } catch(e) {
+                    console.error(e);
+                    list.innerHTML = '<div class="text-center text-red-500 text-[10px]">Error cargando tickets</div>';
+                }
+            },
+
+            async resolveTicket(ticketId, userId) {
+                if(!confirm(`¿Confirmas que ya ayudaste al usuario ${userId} (ej. reseteando su contraseña en la consola de Firebase)?`)) return;
+
+                try {
+                    // Marcar como resuelto (borrar o actualizar estado)
+                    // Aquí lo borramos para limpiar la lista
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'support_requests', ticketId));
+                    this.toast('Ticket cerrado correctamente', 'success');
+                    this.loadSupportTickets(); // Recargar lista
+                } catch(e) {
+                    this.toast('Error al cerrar ticket', 'error');
+                }
             },
 
             // --- RENDER ---
@@ -271,17 +352,14 @@
                 const u = this.user;
                 const displayName = u.displayName || 'Usuario';
                 
-                // Avatar
                 document.getElementById('avatarText').textContent = displayName.charAt(0).toUpperCase();
                 document.getElementById('displayNameDisplay').textContent = displayName;
-                document.getElementById('emailDisplay').textContent = u.email;
+                document.getElementById('emailDisplay').textContent = u.email || 'Acceso por ID';
                 document.getElementById('inpName').value = displayName;
 
-                // Detectar proveedores
                 const providers = u.providerData.map(p => p.providerId);
                 const hasGoogle = providers.includes('google.com');
 
-                // Estado Google
                 const btnLinkGoogle = document.getElementById('btnLinkGoogle');
                 const googleStatus = document.getElementById('googleStatusText');
                 
@@ -293,8 +371,6 @@
                     googleStatus.classList.add('hidden');
                 }
             },
-
-            // --- AUTH ACTIONS (LOGIN/REGISTER) ---
 
             toggleAuthMode(mode) {
                 this.authMode = mode;
@@ -317,21 +393,13 @@
             },
 
             async handleAuth() {
-                // authInput ahora puede ser email o ID
                 const inputVal = document.getElementById('authInput').value.trim();
                 const pass = document.getElementById('authPass').value;
 
                 if (!inputVal || !pass) return this.toast('Completa los campos', 'error');
 
-                // Si no tiene @, asumimos que es un ID y tratamos de construir el email dummy
-                // OJO: Esto depende de cómo crees los usuarios. Si usas correos reales, esto es un fallback.
                 let email = inputVal;
-                if (!email.includes('@')) {
-                    // Si tienes una convención de correos falsos (ej. 2000@godsplan.local)
-                    // email = `${inputVal}@godsplan.local`; 
-                    // Si no, asumimos que el usuario intentó poner un ID pero el login requiere email
-                    // En este caso, simplemente intentamos usarlo tal cual por si acaso.
-                }
+                // Lógica de fallback para ID si es necesario...
 
                 try {
                     if (this.authMode === 'login') {
@@ -358,22 +426,30 @@
                 const isEmail = inputVal.includes('@');
 
                 if (isEmail) {
-                    // Flujo Estándar (Correo Real)
+                    // Flujo 1: Correo Real
                     try {
                         await sendPasswordResetEmail(auth, inputVal);
-                        this.toast('Correo de recuperación enviado. Revisa tu bandeja.', 'success');
+                        this.toast('Correo de recuperación enviado.', 'success');
                     } catch(e) {
                         if (e.code === 'auth/user-not-found') this.toast('No existe cuenta con este correo', 'error');
-                        else this.toast('Error al enviar correo', 'error');
+                        else this.toast('Error: ' + e.code, 'error');
                     }
                 } else {
-                    // Flujo Soporte (ID Ficticio)
-                    const confirmSupport = confirm(`¿Quieres contactar a soporte para restablecer la contraseña del usuario "${inputVal}"? Se abrirá tu correo.`);
-                    
-                    if (confirmSupport) {
-                        const subject = `Soporte: Recuperar Contraseña - Usuario ${inputVal}`;
-                        const body = `Hola Admin,\n\nSoy el usuario con ID: ${inputVal}.\nOlvidé mi contraseña y no tengo acceso al correo vinculado.\nPor favor, envíame instrucciones para restablecerla.\n\nGracias.`;
-                        window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    // Flujo 2: ID Ficticio -> Ticket en BD
+                    if (!confirm(`¿Solicitar ayuda para recuperar la contraseña del usuario "${inputVal}"?`)) return;
+
+                    try {
+                        const ticketRef = collection(db, 'artifacts', appId, 'public', 'data', 'support_requests');
+                        await addDoc(ticketRef, {
+                            type: 'password_reset',
+                            userIdentifier: inputVal,
+                            status: 'pending',
+                            createdAt: new Date().toISOString()
+                        });
+                        this.toast('Solicitud enviada. El administrador te contactará.', 'success');
+                    } catch(e) {
+                        console.error(e);
+                        this.toast('Error de conexión al enviar solicitud.', 'error');
                     }
                 }
             },
@@ -388,19 +464,14 @@
                 }
             },
 
-            // --- ACCOUNT MANAGEMENT ---
-
             async linkGoogle() {
                 const provider = new GoogleAuthProvider();
                 try {
                     await linkWithPopup(this.user, provider);
-                    this.toast('¡Cuenta de Google vinculada con éxito!', 'success');
+                    this.toast('¡Vinculado con éxito!', 'success');
                     this.renderAccount(); 
                 } catch(e) {
-                    console.error(e);
-                    let msg = 'Error al vincular';
-                    if (e.code === 'auth/credential-already-in-use') msg = 'Esa cuenta de Google ya está vinculada a otro usuario.';
-                    this.toast(msg, 'error');
+                    this.toast('Error al vincular: ' + e.code, 'error');
                 }
             },
 
@@ -421,7 +492,7 @@
 
                 try {
                     await updatePassword(this.user, newPass);
-                    this.toast('¡Contraseña actualizada con éxito!', 'success');
+                    this.toast('¡Contraseña actualizada!', 'success');
                     document.getElementById('inpNewPass').value = ''; 
                 } catch(e) {
                     if (e.code === 'auth/requires-recent-login') {
@@ -450,9 +521,7 @@
             }
         };
 
-        // Start
         document.addEventListener('DOMContentLoaded', () => window.accountApp.init());
     </script>
 </body>
 </html>
-
