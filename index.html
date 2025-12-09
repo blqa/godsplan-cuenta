@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>God's Plan | Cuenta</title>
+    <title>God's Plan | Cuenta Universal</title>
     
     <!-- LIBRERIAS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,9 +13,27 @@
     <!-- FIREBASE MODULAR -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // IMPORTAMOS FUNCIONES DE LOGIN Y VINCULACIÓN + sendPasswordResetEmail
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            signOut, 
+            updateProfile, 
+            updatePassword, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signInWithPopup, 
+            GoogleAuthProvider,
+            linkWithPopup,
+            signInWithCustomToken,
+            sendPasswordResetEmail 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         
-        window.firebaseImports = { initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail, signInWithCustomToken, signInAnonymously };
+        window.firebaseImports = { 
+            initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
+            signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail 
+        };
     </script>
     
     <script>
@@ -59,19 +77,18 @@
     <nav id="global-nav" class="flex items-center justify-between px-5 shrink-0">
         <a href="https://godsplan.site" class="g-logo"><i class="ph-bold ph-circles-three-plus text-lg"></i> God's Plan</a>
         <div class="g-links">
-            <a href="https://adherencia.godsplan.site" class="g-link">ADHERENCIA</a>
-            <a href="https://auth.godsplan.site" class="g-link">AUTH</a>
-            <a href="#" class="g-link active">CUENTA</a> <!-- Active -->
+            <a href="#" class="g-link active">CUENTA</a>
+            <!-- Links a otras apps del ecosistema -->
             <a href="https://finanzas.godsplan.site" class="g-link">FINANZAS</a>
         </div>
     </nav>
 
     <!-- CONTENIDO -->
-    <main class="flex-1 p-6 max-w-lg mx-auto w-full">
+    <main class="flex-1 p-6 max-w-lg mx-auto w-full flex flex-col justify-center">
         
-        <header class="mb-8 mt-4">
-            <h1 class="text-3xl font-black text-white mb-2">Mi Perfil</h1>
-            <p class="text-zinc-500 text-sm">Gestiona tu información personal y seguridad.</p>
+        <header class="mb-8 text-center" id="mainHeader">
+            <h1 class="text-3xl font-black text-white mb-2">Cuenta Universal</h1>
+            <p class="text-zinc-500 text-sm">Gestiona tu identidad para todo el ecosistema.</p>
         </header>
 
         <!-- CARGA -->
@@ -79,74 +96,125 @@
             <i class="ph-bold ph-spinner animate-spin text-2xl text-zinc-600"></i>
         </div>
 
-        <!-- PANEL DE CUENTA (Oculto inicialmente) -->
+        <!-- 1. PANEL DE LOGIN/REGISTRO (Autónomo) -->
+        <div id="authPanel" class="hidden space-y-6">
+            <div class="glass p-8 rounded-3xl border-t border-white/10">
+                
+                <!-- Toggle Login/Registro -->
+                <div class="flex bg-black p-1 rounded-xl mb-6 border border-zinc-800">
+                    <button onclick="accountApp.toggleAuthMode('login')" id="tabLogin" class="flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all">INICIAR SESIÓN</button>
+                    <button onclick="accountApp.toggleAuthMode('register')" id="tabRegister" class="flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all">CREAR CUENTA</button>
+                </div>
+
+                <div class="space-y-4">
+                    <input type="email" id="authEmail" class="input-modern w-full p-4" placeholder="Correo electrónico">
+                    <div>
+                        <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
+                        <!-- OPCIÓN OLVIDÉ CONTRASEÑA -->
+                        <div class="text-right mt-2" id="forgotPassContainer">
+                            <button onclick="accountApp.recoverPassword()" class="text-[10px] text-zinc-500 hover:text-white transition-colors font-bold">¿OLVIDASTE TU CONTRASEÑA?</button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="accountApp.handleAuth()" id="btnAuthAction" class="w-full bg-white text-black font-black py-4 rounded-xl hover:scale-[1.02] transition-transform">
+                        ENTRAR
+                    </button>
+                </div>
+
+                <div class="my-6 flex items-center gap-4 text-xs text-zinc-600 font-bold uppercase">
+                    <div class="h-px bg-zinc-800 flex-1"></div>
+                    O continúa con
+                    <div class="h-px bg-zinc-800 flex-1"></div>
+                </div>
+
+                <button onclick="accountApp.loginGoogle()" class="w-full bg-zinc-900 border border-zinc-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-zinc-800 transition-colors">
+                    <i class="ph-bold ph-google-logo text-lg"></i> Google
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. PANEL DE GESTIÓN (Logueado) -->
         <div id="accountPanel" class="hidden space-y-6">
             
             <!-- TARJETA DE PERFIL -->
-            <div class="glass p-6 rounded-3xl flex items-center gap-5">
-                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center border border-zinc-700">
-                    <span id="avatarText" class="text-2xl font-bold text-white">?</span>
+            <div class="glass p-6 rounded-3xl flex items-center gap-5 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-20">
+                    <i class="ph-duotone ph-fingerprint text-6xl text-white"></i>
                 </div>
-                <div>
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center border-2 border-black shadow-lg relative z-10">
+                    <span id="avatarText" class="text-2xl font-black text-white">?</span>
+                </div>
+                <div class="relative z-10">
                     <h2 id="displayNameDisplay" class="text-xl font-bold text-white">Usuario</h2>
-                    <p id="emailDisplay" class="text-xs text-zinc-400 font-mono">cargando...</p>
-                    <div class="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
-                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span class="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Activo</span>
+                    <p id="emailDisplay" class="text-xs text-zinc-300 font-mono">...</p>
+                    <div id="providerBadges" class="flex gap-1 mt-2">
+                        <!-- Badges inyectados via JS -->
                     </div>
                 </div>
             </div>
 
-            <!-- FORMULARIO DE DATOS -->
-            <div class="space-y-4">
-                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Información Básica</h3>
+            <!-- VINCULACIÓN DE CUENTAS (LINKING) -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Métodos de Acceso</h3>
                 
-                <div>
-                    <label class="text-[10px] text-zinc-400 font-bold uppercase ml-2 mb-1 block">Nombre Visible</label>
-                    <div class="relative">
-                        <input type="text" id="inpName" class="input-modern w-full p-4 pl-10" placeholder="Tu nombre">
-                        <i class="ph-fill ph-user absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"></i>
-                    </div>
-                </div>
-
-                <button onclick="accountApp.updateName()" class="w-full bg-white text-black font-bold py-3 rounded-xl hover:scale-[1.02] transition-transform">
-                    GUARDAR CAMBIOS
-                </button>
-            </div>
-
-            <!-- SEGURIDAD -->
-            <div class="border-t border-zinc-800 pt-6 space-y-4">
-                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Seguridad</h3>
-                
-                <div class="glass p-4 rounded-2xl border-l-4 border-l-blue-500">
-                    <div class="flex items-start gap-3">
-                        <i class="ph-fill ph-lock-key text-blue-500 text-xl mt-0.5"></i>
+                <!-- Estado Google -->
+                <div class="glass p-4 rounded-2xl flex justify-between items-center" id="googleLinkCard">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center"><i class="ph-bold ph-google-logo"></i></div>
                         <div>
-                            <h4 class="text-sm font-bold text-zinc-200">Contraseña</h4>
-                            <p class="text-xs text-zinc-500 mt-1">Te enviaremos un enlace a tu correo para restablecer tu contraseña de forma segura.</p>
-                            <button onclick="accountApp.resetPassword()" class="mt-3 text-xs bg-blue-600/20 text-blue-400 px-3 py-1.5 rounded-lg font-bold border border-blue-600/30 hover:bg-blue-600/30 transition-colors">
-                                ENVIAR CORREO DE CAMBIO
-                            </button>
+                            <div class="text-sm font-bold text-white">Cuenta Google</div>
+                            <div class="text-[10px] text-zinc-500" id="googleStatusText">No vinculado</div>
                         </div>
                     </div>
+                    <button id="btnLinkGoogle" onclick="accountApp.linkGoogle()" class="text-[10px] font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                        VINCULAR
+                    </button>
+                </div>
+
+                <!-- Estado Contraseña -->
+                <div class="glass p-4 rounded-2xl flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center"><i class="ph-bold ph-password"></i></div>
+                        <div>
+                            <div class="text-sm font-bold text-white">Contraseña</div>
+                            <div class="text-[10px] text-zinc-500">Acceso clásico</div>
+                        </div>
+                    </div>
+                    <!-- Siempre permitimos cambiar/establecer contraseña -->
+                    <button onclick="document.getElementById('passSection').classList.remove('hidden')" class="text-[10px] font-bold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                        GESTIONAR
+                    </button>
                 </div>
             </div>
 
-            <!-- ZONA DE PELIGRO / SESIÓN -->
-            <div class="border-t border-zinc-800 pt-6">
-                <button onclick="accountApp.logout()" class="w-full flex items-center justify-center gap-2 text-zinc-400 hover:text-white py-4 font-bold text-sm transition-colors">
-                    <i class="ph-bold ph-sign-out"></i> CERRAR SESIÓN EN TODOS LOS DISPOSITIVOS
+            <!-- EDICIÓN PERFIL -->
+            <div class="space-y-4 pt-4 border-t border-zinc-800">
+                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">Datos Públicos</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="inpName" class="input-modern w-full p-3 pl-4 text-sm" placeholder="Nombre visible">
+                    <button onclick="accountApp.updateName()" class="bg-white text-black font-bold px-4 rounded-xl hover:scale-105 transition-transform text-xs">
+                        OK
+                    </button>
+                </div>
+            </div>
+
+            <!-- SECCIÓN OCULTA: CAMBIAR PASSWORD -->
+            <div id="passSection" class="hidden glass p-4 rounded-2xl border-l-4 border-l-indigo-500 animation-fade-in">
+                <h4 class="text-sm font-bold text-white mb-2">Nueva Contraseña</h4>
+                <input type="password" id="inpNewPass" class="input-modern w-full p-3 mb-2 text-sm" placeholder="Mínimo 6 caracteres">
+                <div class="flex gap-2">
+                    <button onclick="accountApp.changePassword()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg transition-colors">ACTUALIZAR</button>
+                    <button onclick="document.getElementById('passSection').classList.add('hidden')" class="px-3 bg-zinc-800 text-zinc-400 text-xs font-bold rounded-lg hover:text-white">CANCELAR</button>
+                </div>
+            </div>
+
+            <!-- LOGOUT -->
+            <div class="pt-6">
+                <button onclick="accountApp.logout()" class="w-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-sign-out"></i> CERRAR SESIÓN
                 </button>
             </div>
 
-        </div>
-
-        <!-- ESTADO SIN SESIÓN -->
-        <div id="noSessionPanel" class="hidden text-center py-20">
-            <i class="ph-duotone ph-user-circle text-6xl text-zinc-700 mb-4"></i>
-            <h2 class="text-xl font-bold text-white">No has iniciado sesión</h2>
-            <p class="text-zinc-500 text-sm mb-6">Inicia sesión en alguna de las apps para gestionar tu cuenta.</p>
-            <a href="https://finanzas.godsplan.site" class="inline-block bg-white text-black px-6 py-3 rounded-xl font-bold text-sm">IR A FINANZAS</a>
         </div>
 
     </main>
@@ -154,7 +222,11 @@
     <div id="toast-container"></div>
 
     <script type="module">
-        const { initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail, signInWithCustomToken, signInAnonymously } = window.firebaseImports;
+        const { 
+            initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
+            signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail
+        } = window.firebaseImports;
 
         // Configuración segura
         let firebaseConfig = {};
@@ -162,7 +234,6 @@
             if (typeof __firebase_config !== 'undefined') {
                 firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
             } else {
-                // Fallback para dev/preview si no hay config de entorno
                 firebaseConfig = {
                     apiKey: "AIzaSyCrHBz94UtgiaYntHCYhC5jNa6auUI63vQ",
                     authDomain: "god-s-plan-d737b.firebaseapp.com",
@@ -183,44 +254,167 @@
         // App Logic
         window.accountApp = {
             user: null,
+            authMode: 'login', // 'login' | 'register'
 
             init() {
                 if(!auth) return;
                 
                 onAuthStateChanged(auth, async (u) => {
                     if (!u) {
-                        // Intentar login automático si hay token en el entorno
-                        if (initialAuthToken) {
+                        // Check token environment only once
+                        if (initialAuthToken && !window.tokenTried) {
+                            window.tokenTried = true;
                             try { await signInWithCustomToken(auth, initialAuthToken); return; } 
                             catch(e) { console.error(e); }
                         }
-                        this.renderNoSession();
+                        this.renderAuth();
                     } else {
                         this.user = u;
-                        this.renderUser();
+                        this.renderAccount();
                     }
                 });
             },
 
-            renderUser() {
+            // --- RENDER ---
+            
+            renderAuth() {
                 document.getElementById('loader').classList.add('hidden');
-                document.getElementById('noSessionPanel').classList.add('hidden');
+                document.getElementById('accountPanel').classList.add('hidden');
+                document.getElementById('authPanel').classList.remove('hidden');
+                document.getElementById('mainHeader').classList.remove('hidden');
+            },
+
+            renderAccount() {
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('authPanel').classList.add('hidden');
                 document.getElementById('accountPanel').classList.remove('hidden');
+                // Opcional: Ocultar header grande en vista de cuenta para más espacio
+                // document.getElementById('mainHeader').classList.add('hidden');
 
                 const u = this.user;
                 const displayName = u.displayName || 'Usuario';
-                const initial = displayName.charAt(0).toUpperCase();
-
-                document.getElementById('avatarText').textContent = initial;
+                
+                // Avatar
+                document.getElementById('avatarText').textContent = displayName.charAt(0).toUpperCase();
                 document.getElementById('displayNameDisplay').textContent = displayName;
-                document.getElementById('emailDisplay').textContent = u.email || 'Usuario Anónimo';
+                document.getElementById('emailDisplay').textContent = u.email;
                 document.getElementById('inpName').value = displayName;
+
+                // Detectar proveedores vinculados
+                const providers = u.providerData.map(p => p.providerId);
+                const hasGoogle = providers.includes('google.com');
+                const hasPassword = providers.includes('password');
+
+                // Badges
+                const badgesContainer = document.getElementById('providerBadges');
+                badgesContainer.innerHTML = '';
+                if(hasGoogle) badgesContainer.innerHTML += `<span class="px-1.5 py-0.5 rounded bg-white text-black text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-google-logo"></i> Google</span>`;
+                if(hasPassword) badgesContainer.innerHTML += `<span class="px-1.5 py-0.5 rounded bg-zinc-800 text-white text-[10px] font-bold flex items-center gap-1"><i class="ph-bold ph-key"></i> Pass</span>`;
+
+                // Botón Vincular Google
+                const btnLinkGoogle = document.getElementById('btnLinkGoogle');
+                const googleStatus = document.getElementById('googleStatusText');
+                
+                if (hasGoogle) {
+                    btnLinkGoogle.classList.add('hidden');
+                    googleStatus.textContent = 'Vinculado correctamente';
+                    googleStatus.className = 'text-[10px] text-emerald-500 font-bold';
+                } else {
+                    btnLinkGoogle.classList.remove('hidden');
+                    googleStatus.textContent = 'No vinculado';
+                    googleStatus.className = 'text-[10px] text-zinc-500';
+                }
             },
 
-            renderNoSession() {
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('accountPanel').classList.add('hidden');
-                document.getElementById('noSessionPanel').classList.remove('hidden');
+            // --- AUTH ACTIONS (LOGIN/REGISTER) ---
+
+            toggleAuthMode(mode) {
+                this.authMode = mode;
+                const btn = document.getElementById('btnAuthAction');
+                const tabLogin = document.getElementById('tabLogin');
+                const tabRegister = document.getElementById('tabRegister');
+                const forgotPassContainer = document.getElementById('forgotPassContainer');
+
+                if (mode === 'login') {
+                    btn.textContent = 'ENTRAR';
+                    tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
+                    tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
+                    forgotPassContainer.classList.remove('hidden');
+                } else {
+                    btn.textContent = 'REGISTRARME';
+                    tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
+                    tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
+                    forgotPassContainer.classList.add('hidden');
+                }
+            },
+
+            async handleAuth() {
+                const email = document.getElementById('authEmail').value;
+                const pass = document.getElementById('authPass').value;
+
+                if (!email || !pass) return this.toast('Completa los campos', 'error');
+
+                try {
+                    if (this.authMode === 'login') {
+                        await signInWithEmailAndPassword(auth, email, pass);
+                        // El listener onAuthStateChanged manejará la redirección
+                    } else {
+                        await createUserWithEmailAndPassword(auth, email, pass);
+                        this.toast('¡Cuenta creada!', 'success');
+                    }
+                } catch(e) {
+                    console.error(e);
+                    let msg = 'Error de autenticación';
+                    if (e.code === 'auth/email-already-in-use') msg = 'El correo ya está registrado';
+                    if (e.code === 'auth/wrong-password') msg = 'Contraseña incorrecta';
+                    if (e.code === 'auth/user-not-found') msg = 'Usuario no encontrado';
+                    if (e.code === 'auth/weak-password') msg = 'La contraseña es muy débil';
+                    this.toast(msg, 'error');
+                }
+            },
+
+            async recoverPassword() {
+                const email = document.getElementById('authEmail').value;
+                if (!email) return this.toast('Escribe tu correo en el campo de arriba', 'error');
+                
+                try {
+                    await sendPasswordResetEmail(auth, email);
+                    this.toast('Correo de recuperación enviado. Revisa tu bandeja.', 'success');
+                } catch(e) {
+                    console.error(e);
+                    if (e.code === 'auth/user-not-found') {
+                        this.toast('No existe cuenta con este correo', 'error');
+                    } else {
+                        this.toast('Error al enviar correo', 'error');
+                    }
+                }
+            },
+
+            async loginGoogle() {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch(e) {
+                    console.error(e);
+                    this.toast('Error al iniciar con Google', 'error');
+                }
+            },
+
+            // --- ACCOUNT MANAGEMENT ---
+
+            async linkGoogle() {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await linkWithPopup(this.user, provider);
+                    this.toast('¡Cuenta de Google vinculada con éxito!', 'success');
+                    // Forzar refresh visual
+                    this.renderAccount(); 
+                } catch(e) {
+                    console.error(e);
+                    let msg = 'Error al vincular';
+                    if (e.code === 'auth/credential-already-in-use') msg = 'Esa cuenta de Google ya está vinculada a otro usuario.';
+                    this.toast(msg, 'error');
+                }
             },
 
             async updateName() {
@@ -229,24 +423,30 @@
 
                 try {
                     await updateProfile(this.user, { displayName: newName });
-                    this.toast('Nombre actualizado correctamente', 'success');
-                    this.renderUser(); // Refrescar UI
-                } catch(e) {
-                    console.error(e);
-                    this.toast('Error al actualizar perfil', 'error');
-                }
+                    this.toast('Perfil actualizado', 'success');
+                    this.renderAccount();
+                } catch(e) { this.toast('Error al actualizar', 'error'); }
             },
 
-            async resetPassword() {
-                const email = this.user.email;
-                if (!email) return this.toast('No hay un email asociado a esta cuenta', 'error');
+            async changePassword() {
+                const newPass = document.getElementById('inpNewPass').value;
+                if (!newPass || newPass.length < 6) return this.toast('Mínimo 6 caracteres', 'error');
 
                 try {
-                    await sendPasswordResetEmail(auth, email);
-                    this.toast(`Correo de restablecimiento enviado a ${email}`, 'success');
+                    await updatePassword(this.user, newPass);
+                    this.toast('Contraseña actualizada/establecida', 'success');
+                    document.getElementById('passSection').classList.add('hidden');
+                    // Si el usuario era solo de Google, ahora tiene password también.
+                    // Recargar pagina para actualizar badges providers es una opción, 
+                    // o llamar a renderAccount si el objeto user se actualizó en vivo (Firebase suele hacerlo).
+                    // Para asegurar, re-obtenemos token o esperamos. Normalmente providerData se actualiza.
+                    this.renderAccount();
                 } catch(e) {
-                    console.error(e);
-                    this.toast('Error al enviar correo. Intenta más tarde.', 'error');
+                    if (e.code === 'auth/requires-recent-login') {
+                        this.toast('Por seguridad, cierra sesión y vuelve a entrar.', 'error');
+                    } else {
+                        this.toast('Error: ' + e.message, 'error');
+                    }
                 }
             },
 
@@ -254,14 +454,14 @@
                 try {
                     await signOut(auth);
                     window.location.reload();
-                } catch(e) { this.toast('Error al cerrar sesión', 'error'); }
+                } catch(e) { this.toast('Error al salir', 'error'); }
             },
 
             toast(msg, type = 'info') {
                 const con = document.getElementById('toast-container');
                 const el = document.createElement('div');
                 el.className = 'toast';
-                const icon = type === 'success' ? 'ph-check-circle text-emerald-400' : 'ph-warning text-red-400';
+                const icon = type === 'success' ? 'ph-check-circle text-emerald-400' : (type === 'error' ? 'ph-warning text-red-400' : 'ph-info text-blue-400');
                 el.innerHTML = `<i class="ph-fill ${icon} text-xl"></i><span class="text-xs font-bold text-white">${msg}</span>`;
                 con.appendChild(el);
                 setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
