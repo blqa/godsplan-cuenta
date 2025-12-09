@@ -13,7 +13,7 @@
     <!-- FIREBASE MODULAR -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // IMPORTAMOS FUNCIONES DE LOGIN Y VINCULACIÓN + sendPasswordResetEmail
+        // IMPORTAMOS FUNCIONES DE LOGIN Y VINCULACIÓN
         import { 
             getAuth, 
             onAuthStateChanged, 
@@ -25,14 +25,13 @@
             signInWithPopup, 
             GoogleAuthProvider,
             linkWithPopup,
-            signInWithCustomToken,
-            sendPasswordResetEmail 
+            signInWithCustomToken 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         
         window.firebaseImports = { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
-            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail 
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken 
         };
     </script>
     
@@ -110,10 +109,6 @@
                     <input type="email" id="authEmail" class="input-modern w-full p-4" placeholder="Correo electrónico">
                     <div>
                         <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
-                        <!-- OPCIÓN OLVIDÉ CONTRASEÑA -->
-                        <div class="text-right mt-2" id="forgotPassContainer">
-                            <button onclick="accountApp.recoverPassword()" class="text-[10px] text-zinc-500 hover:text-white transition-colors font-bold">¿OLVIDASTE TU CONTRASEÑA?</button>
-                        </div>
                     </div>
                     
                     <button onclick="accountApp.handleAuth()" id="btnAuthAction" class="w-full bg-white text-black font-black py-4 rounded-xl hover:scale-[1.02] transition-transform">
@@ -225,7 +220,7 @@
         const { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
-            GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail
+            GoogleAuthProvider, linkWithPopup, signInWithCustomToken 
         } = window.firebaseImports;
 
         // Configuración segura
@@ -333,18 +328,15 @@
                 const btn = document.getElementById('btnAuthAction');
                 const tabLogin = document.getElementById('tabLogin');
                 const tabRegister = document.getElementById('tabRegister');
-                const forgotPassContainer = document.getElementById('forgotPassContainer');
 
                 if (mode === 'login') {
                     btn.textContent = 'ENTRAR';
                     tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
                     tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
-                    forgotPassContainer.classList.remove('hidden');
                 } else {
                     btn.textContent = 'REGISTRARME';
                     tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
                     tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
-                    forgotPassContainer.classList.add('hidden');
                 }
             },
 
@@ -370,23 +362,6 @@
                     if (e.code === 'auth/user-not-found') msg = 'Usuario no encontrado';
                     if (e.code === 'auth/weak-password') msg = 'La contraseña es muy débil';
                     this.toast(msg, 'error');
-                }
-            },
-
-            async recoverPassword() {
-                const email = document.getElementById('authEmail').value;
-                if (!email) return this.toast('Escribe tu correo en el campo de arriba', 'error');
-                
-                try {
-                    await sendPasswordResetEmail(auth, email);
-                    this.toast('Correo de recuperación enviado. Revisa tu bandeja.', 'success');
-                } catch(e) {
-                    console.error(e);
-                    if (e.code === 'auth/user-not-found') {
-                        this.toast('No existe cuenta con este correo', 'error');
-                    } else {
-                        this.toast('Error al enviar correo', 'error');
-                    }
                 }
             },
 
