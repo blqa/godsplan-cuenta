@@ -390,29 +390,76 @@
                 const newUid = document.getElementById('migNewUid').value.trim();
                 if(!oldUid || !newUid) return this.toast('Faltan UIDs', 'error');
 
+                this.toast('Iniciando búsqueda de datos...', 'info');
+
+                // Posibles App IDs donde podrían estar los datos
+                const possibleAppIds = [appId, 'godsplan-local', '1:458198314028:web:d62b24cee2d19ee5b47589']; 
+                
+                let sourceAppId = null;
+                let userData = null;
+
+                // 1. Buscar Documento Padre (Configuración)
+                for (const tryId of possibleAppIds) {
+                    try {
+                        const ref = doc(db, 'artifacts', tryId, 'users', oldUid);
+                        const snap = await getDoc(ref);
+                        if (snap.exists()) {
+                            sourceAppId = tryId;
+                            userData = snap.data();
+                            console.log(`Datos encontrados en AppID: ${tryId}`);
+                            break; 
+                        }
+                    } catch(e) { console.warn(`Fallo lectura en ${tryId}`, e); }
+                }
+
+                if (!sourceAppId) {
+                    console.warn("No se encontró documento padre. Intentando buscar logs directamente...");
+                }
+
+                const targetAppId = appId; // Siempre escribimos en el entorno actual
+                const batch = writeBatch(db);
+                let opsCount = 0;
+
                 try {
-                    const oldUserRef = doc(db, 'artifacts', appId, 'users', oldUid);
-                    const oldSnap = await getDoc(oldUserRef);
-                    if (!oldSnap.exists()) return this.toast('Datos antiguos no encontrados', 'error');
-                    
-                    const newUserRef = doc(db, 'artifacts', appId, 'users', newUid);
-                    await setDoc(newUserRef, oldSnap.data(), { merge: true });
+                    // 2. Migrar Configuración (Si existe)
+                    if (userData) {
+                        const newUserRef = doc(db, 'artifacts', targetAppId, 'users', newUid);
+                        batch.set(newUserRef, userData, { merge: true });
+                        opsCount++;
+                    }
 
-                    const oldLogsRef = collection(db, 'artifacts', appId, 'users', oldUid, 'logs');
-                    const newLogsRef = collection(db, 'artifacts', appId, 'users', newUid, 'logs');
-                    const logsSnap = await getDocs(oldLogsRef);
-                    
-                    const batch = writeBatch(db);
-                    logsSnap.forEach(log => {
-                        const newLogRef = doc(newLogsRef); 
-                        batch.set(newLogRef, log.data());
-                    });
+                    // 3. Migrar Logs (Búsqueda profunda)
+                    const appsToSearchLogs = sourceAppId ? [sourceAppId] : possibleAppIds;
+                    let logsFound = false;
+
+                    for (const tryId of appsToSearchLogs) {
+                        const oldLogsRef = collection(db, 'artifacts', tryId, 'users', oldUid, 'logs');
+                        const logsSnap = await getDocs(oldLogsRef);
+                        
+                        if (!logsSnap.empty) {
+                            console.log(`Logs encontrados en ${tryId}: ${logsSnap.size}`);
+                            const newLogsRef = collection(db, 'artifacts', targetAppId, 'users', newUid, 'logs');
+                            
+                            logsSnap.forEach(log => {
+                                const newLogRef = doc(newLogsRef); 
+                                batch.set(newLogRef, log.data());
+                                opsCount++;
+                            });
+                            logsFound = true;
+                            break; 
+                        }
+                    }
+
+                    if (opsCount === 0) {
+                        return this.toast('No se encontraron datos ni logs en ninguna ruta probable.', 'error');
+                    }
+
                     await batch.commit();
+                    this.toast(`Migración ÉXITOSA. ${opsCount} registros transferidos.`, 'success');
 
-                    this.toast('Migración exitosa', 'success');
                 } catch(e) {
                     console.error(e);
-                    this.toast('Error: ' + e.message, 'error');
+                    this.toast('Error crítico en migración: ' + e.message, 'error');
                 }
             },
 
@@ -466,6 +513,8 @@
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('accountPanel').classList.add('hidden');
                 document.getElementById('authPanel').classList.remove('hidden');
+                // Ocultar header solo si se desea
+                // document.getElementById('mainHeader').classList.remove('hidden');
             },
 
             renderAccount() {
@@ -504,7 +553,7 @@
                 const inactiveClass = "text-zinc-600 hover:text-zinc-300 border border-transparent";
 
                 if (mode === 'login') {
-                    btn.textContent = 'ENTRAR';
+                    btn.textContent = 'INICIAR';
                     tabLogin.className = `flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${activeClass}`;
                     tabRegister.className = `flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${inactiveClass}`;
                     forgotBtn.classList.remove('hidden');
