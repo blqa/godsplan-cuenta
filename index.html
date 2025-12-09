@@ -94,7 +94,15 @@
                 </div>
 
                 <div class="space-y-4">
-                    <input type="text" id="authInput" class="input-modern w-full p-4" placeholder="Correo electrónico o ID de Usuario">
+                    <div>
+                        <label class="text-[10px] text-zinc-500 font-bold uppercase ml-2 mb-1 block">Usuario / ID / Correo</label>
+                        <input type="text" id="authInput" class="input-modern w-full p-4" placeholder="Ej: 2000 ó correo@ejemplo.com" oninput="accountApp.updateAuthPreview()">
+                        <!-- PREVISUALIZACIÓN DE CORREO TÉCNICO -->
+                        <div id="emailPreview" class="hidden mt-2 px-3 py-2 bg-zinc-900 rounded-lg border border-zinc-800 flex items-center justify-between">
+                            <span class="text-[10px] text-zinc-500">Cuenta técnica:</span>
+                            <span id="emailPreviewText" class="text-xs font-mono text-emerald-400 font-bold">...</span>
+                        </div>
+                    </div>
                     
                     <div>
                         <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
@@ -138,14 +146,24 @@
             </div>
 
             <!-- === ZONA ADMIN (SOLO VISIBLE PARA ADMIN) === -->
-            <div id="adminPanel" class="hidden glass p-5 rounded-3xl border border-red-900/50 bg-red-950/10">
-                <div class="flex justify-between items-center mb-4">
+            <div id="adminPanel" class="hidden glass p-5 rounded-3xl border border-red-900/50 bg-red-950/10 space-y-4">
+                <div class="flex justify-between items-center">
                     <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2">
-                        <i class="ph-fill ph-crown"></i> Solicitudes de Ayuda
+                        <i class="ph-fill ph-crown"></i> Admin: Soporte
                     </h3>
                     <button onclick="accountApp.loadSupportTickets()" class="text-red-400 hover:text-white">
                         <i class="ph-bold ph-arrows-clockwise"></i>
                     </button>
+                </div>
+
+                <!-- BUSCADOR DE CORREO TÉCNICO -->
+                <div class="bg-black/40 p-3 rounded-xl border border-red-900/30">
+                    <label class="text-[10px] text-zinc-500 font-bold uppercase mb-1 block">Convertidor ID -> Correo</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="adminIdInput" class="input-modern w-full p-2 text-xs" placeholder="Ingresa ID (ej: 2000)">
+                        <button onclick="accountApp.adminLookupEmail()" class="bg-zinc-800 text-white px-3 rounded-lg text-xs font-bold">VER</button>
+                    </div>
+                    <div id="adminLookupResult" class="mt-2 text-xs font-mono text-emerald-400 hidden select-all"></div>
                 </div>
                 
                 <div id="supportTicketsList" class="space-y-2">
@@ -282,6 +300,15 @@
             },
 
             // --- ADMIN LOGIC ---
+            adminLookupEmail() {
+                const id = document.getElementById('adminIdInput').value.trim();
+                if(!id) return;
+                const email = `${id}@godsplan.site`;
+                const res = document.getElementById('adminLookupResult');
+                res.textContent = email;
+                res.classList.remove('hidden');
+            },
+
             async loadSupportTickets() {
                 const list = document.getElementById('supportTicketsList');
                 list.innerHTML = '<div class="text-center py-2 text-zinc-500 animate-pulse">Buscando solicitudes...</div>';
@@ -392,14 +419,31 @@
                 }
             },
 
+            // --- NEW: AUTH PREVIEW (ID -> EMAIL) ---
+            updateAuthPreview() {
+                const val = document.getElementById('authInput').value;
+                const previewBox = document.getElementById('emailPreview');
+                const previewText = document.getElementById('emailPreviewText');
+
+                if (val && !val.includes('@')) {
+                    previewBox.classList.remove('hidden');
+                    previewText.textContent = `${val}@godsplan.site`;
+                } else {
+                    previewBox.classList.add('hidden');
+                }
+            },
+
             async handleAuth() {
                 const inputVal = document.getElementById('authInput').value.trim();
                 const pass = document.getElementById('authPass').value;
 
                 if (!inputVal || !pass) return this.toast('Completa los campos', 'error');
 
+                // Si no tiene @, autocompletamos con el dominio ficticio
                 let email = inputVal;
-                // Lógica de fallback para ID si es necesario...
+                if (!email.includes('@')) {
+                    email = `${inputVal}@godsplan.site`; 
+                }
 
                 try {
                     if (this.authMode === 'login') {
