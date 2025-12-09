@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="es" style="background-color: #050505;">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>God's Plan | Cuenta Universal</title>
+    <title>God's Plan | Identidad</title>
     
     <!-- LIBRERIAS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <!-- FIREBASE MODULAR -->
@@ -28,14 +28,13 @@
             sendPasswordResetEmail 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         
-        // Importamos Firestore
-        import { getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, getDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         window.firebaseImports = { 
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
             GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail,
-            getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc
+            getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, getDoc, setDoc, writeBatch
         };
     </script>
     
@@ -45,8 +44,23 @@
                 extend: {
                     fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
                     colors: {
-                        dark: { 900: '#050505', 800: '#0a0a0a', 700: '#121212', card: '#18181b' },
-                        brand: { 500: '#ef4444', 600: '#dc2626' }
+                        blood: { 500: '#ef4444', 600: '#dc2626', 900: '#7f1d1d', 950: '#450a0a' },
+                        void: '#030000'
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+                        'glow': 'glow 3s ease-in-out infinite alternate'
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 20px -10px #dc2626' },
+                            '100%': { boxShadow: '0 0 40px -10px #ef4444' }
+                        }
                     }
                 }
             }
@@ -54,174 +68,231 @@
     </script>
 
     <style>
-        body { background-color: #050505; color: #e5e5e5; }
-        .glass { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
-        .input-modern { background: #0a0a0a; border: 1px solid #333; color: white; border-radius: 12px; transition: all 0.2s; }
-        .input-modern:focus { border-color: #ef4444; outline: none; }
+        body { 
+            background-color: #030000; 
+            color: #e5e5e5; 
+            overflow-x: hidden;
+        }
         
+        /* Fondo Sangriento Animado */
+        .bg-blood-gradient {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 120%, #450a0a 0%, #030000 60%);
+            z-index: -1;
+            animation: pulse-bg 8s infinite alternate;
+        }
+        
+        @keyframes pulse-bg {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* Glassmorphism Oscuro */
+        .glass-dark { 
+            background: rgba(10, 5, 5, 0.7); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(220, 38, 38, 0.15); 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+        
+        .input-blood { 
+            background: rgba(0, 0, 0, 0.6); 
+            border: 1px solid #331010; 
+            color: white; 
+            border-radius: 12px; 
+            transition: all 0.3s; 
+        }
+        .input-blood:focus { 
+            border-color: #dc2626; 
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.3); 
+            outline: none; 
+            background: rgba(20, 0, 0, 0.8);
+        }
+
+        /* Nav condicional */
+        .nav-hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+        .nav-visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
+        #global-nav { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
         /* Toast */
-        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
-        .toast { background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 30px; border: 1px solid #333; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 10px; animation: fadeIn 0.3s forwards; pointer-events: auto; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; pointer-events: none; }
+        .toast { background: rgba(5, 0, 0, 0.95); border: 1px solid #331010; padding: 12px 24px; border-radius: 99px; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(220, 38, 38, 0.2); animation: fadeInUp 0.3s forwards; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen justify-center items-center p-4">
+<body class="flex flex-col min-h-screen justify-center items-center p-6 relative">
 
-    <!-- CONTENIDO -->
-    <main class="w-full max-w-md">
+    <div class="bg-blood-gradient"></div>
+
+    <!-- NAV SUPERIOR (Solo visible si hay sesión) -->
+    <nav id="global-nav" class="fixed top-0 left-0 w-full flex items-center justify-between px-6 h-16 z-50 glass-dark border-b-0 border-b-red-900/20 nav-hidden">
+        <a href="https://godsplan.site" class="text-white font-black tracking-tighter flex items-center gap-2 hover:text-red-500 transition-colors">
+            <i class="ph-fill ph-skull text-xl"></i> GOD'S PLAN
+        </a>
+        <div class="flex items-center gap-6">
+            <a href="https://finanzas.godsplan.site" class="text-[10px] font-bold text-zinc-500 hover:text-white tracking-widest transition-colors">FINANZAS</a>
+        </div>
+    </nav>
+
+    <!-- CONTENIDO CENTRAL -->
+    <main class="w-full max-w-md relative z-10">
         
-        <header class="mb-8 text-center" id="mainHeader">
-            <div class="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 border border-white/10">
-                <i class="ph-duotone ph-fingerprint text-3xl text-white"></i>
+        <!-- HEADER -->
+        <header class="mb-10 text-center opacity-0 animate-fade-in-up" style="animation-delay: 0.1s;">
+            <div class="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-tr from-red-900 to-black border border-red-800/50 shadow-[0_0_30px_rgba(220,38,38,0.4)]">
+                <i class="ph-duotone ph-fingerprint text-4xl text-red-500"></i>
             </div>
-            <h1 class="text-3xl font-black text-white mb-2">Cuenta Universal</h1>
-            <p class="text-zinc-500 text-sm">Gestiona tu acceso y seguridad.</p>
+            <h1 class="text-4xl font-black text-white mb-2 tracking-tight">IDENTIDAD</h1>
+            <p class="text-red-400/60 text-xs font-mono tracking-widest uppercase">Sistema de Acceso Universal</p>
         </header>
 
         <!-- CARGA -->
         <div id="loader" class="text-center py-10">
-            <i class="ph-bold ph-spinner animate-spin text-2xl text-zinc-600"></i>
+            <i class="ph-bold ph-spinner animate-spin text-3xl text-red-600"></i>
         </div>
 
         <!-- 1. PANEL DE LOGIN/REGISTRO (Autónomo) -->
-        <div id="authPanel" class="hidden space-y-6">
-            <div class="glass p-8 rounded-3xl border-t border-white/10">
+        <div id="authPanel" class="hidden opacity-0 animate-fade-in-up" style="animation-delay: 0.2s;">
+            <div class="glass-dark p-8 rounded-3xl">
                 
-                <!-- Toggle Login/Registro -->
-                <div class="flex bg-black p-1 rounded-xl mb-6 border border-zinc-800">
-                    <button onclick="accountApp.toggleAuthMode('login')" id="tabLogin" class="flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all">INICIAR SESIÓN</button>
-                    <button onclick="accountApp.toggleAuthMode('register')" id="tabRegister" class="flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all">CREAR CUENTA</button>
+                <!-- Toggle -->
+                <div class="flex bg-black/80 p-1 rounded-xl mb-8 border border-white/5">
+                    <button onclick="accountApp.toggleAuthMode('login')" id="tabLogin" class="flex-1 py-2.5 text-xs font-bold rounded-lg bg-red-900/30 text-red-100 border border-red-900/50 transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)]">ACCESO</button>
+                    <button onclick="accountApp.toggleAuthMode('register')" id="tabRegister" class="flex-1 py-2.5 text-xs font-bold rounded-lg text-zinc-600 hover:text-zinc-300 transition-all">REGISTRO</button>
                 </div>
 
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-[10px] text-zinc-500 font-bold uppercase ml-2 mb-1 block">Usuario / ID / Correo</label>
-                        <input type="text" id="authInput" class="input-modern w-full p-4" placeholder="Ej: 2000 ó correo@ejemplo.com" oninput="accountApp.updateAuthPreview()">
-                        <!-- PREVISUALIZACIÓN DE CORREO TÉCNICO -->
-                        <div id="emailPreview" class="hidden mt-2 px-3 py-2 bg-zinc-900 rounded-lg border border-zinc-800 flex items-center justify-between">
-                            <span class="text-[10px] text-zinc-500">Cuenta técnica:</span>
-                            <span id="emailPreviewText" class="text-xs font-mono text-emerald-400 font-bold">...</span>
-                        </div>
+                <div class="space-y-5">
+                    <div class="relative group">
+                        <input type="text" id="authInput" class="input-blood w-full p-4 pl-12 text-sm" placeholder="ID o Correo" oninput="accountApp.updateAuthPreview()">
+                        <i class="ph-fill ph-user absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-red-500 transition-colors"></i>
                     </div>
                     
-                    <div>
-                        <input type="password" id="authPass" class="input-modern w-full p-4" placeholder="Contraseña">
-                        <!-- OPCIÓN RECUPERAR CONTRASEÑA -->
-                        <div class="text-right mt-2 hidden" id="forgotPassContainer">
-                            <button onclick="accountApp.recoverPassword()" class="text-[10px] text-zinc-500 hover:text-white transition-colors font-bold underline decoration-zinc-700 underline-offset-4 flex items-center justify-end gap-1 w-full">
-                                <i class="ph-bold ph-life-buoy"></i> ¿Olvidaste tu contraseña?
-                            </button>
-                        </div>
+                    <div class="relative group">
+                        <input type="password" id="authPass" class="input-blood w-full p-4 pl-12 text-sm" placeholder="Clave de acceso">
+                        <i class="ph-fill ph-key absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-red-500 transition-colors"></i>
+                    </div>
+
+                    <div class="text-right hidden" id="forgotPassContainer">
+                        <button onclick="accountApp.recoverPassword()" class="text-[10px] text-red-400/70 hover:text-red-400 font-bold transition-colors uppercase tracking-wider">
+                            Recuperar acceso
+                        </button>
                     </div>
                     
-                    <button onclick="accountApp.handleAuth()" id="btnAuthAction" class="w-full bg-white text-black font-black py-4 rounded-xl hover:scale-[1.02] transition-transform">
-                        ENTRAR
+                    <button onclick="accountApp.handleAuth()" id="btnAuthAction" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl transition-all shadow-[0_5px_20px_rgba(220,38,38,0.4)] hover:shadow-[0_10px_30px_rgba(220,38,38,0.6)] transform hover:-translate-y-1 active:scale-95 text-sm tracking-widest">
+                        INICIAR
                     </button>
                 </div>
 
-                <div class="my-6 flex items-center gap-4 text-xs text-zinc-600 font-bold uppercase">
-                    <div class="h-px bg-zinc-800 flex-1"></div>
-                    O continúa con
-                    <div class="h-px bg-zinc-800 flex-1"></div>
+                <!-- Preview Email -->
+                <div id="emailPreview" class="hidden mt-4 text-center">
+                    <p class="text-[10px] text-zinc-600">ID detectado &rarr; <span id="emailPreviewText" class="text-red-400 font-mono"></span></p>
                 </div>
 
-                <button onclick="accountApp.loginGoogle()" class="w-full bg-zinc-900 border border-zinc-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-zinc-800 transition-colors">
-                    <i class="ph-bold ph-google-logo text-lg"></i> Google
+                <div class="my-8 flex items-center gap-4 text-[10px] text-zinc-700 font-black uppercase tracking-widest">
+                    <div class="h-px bg-zinc-900 flex-1"></div>
+                    ALTERNATIVA
+                    <div class="h-px bg-zinc-900 flex-1"></div>
+                </div>
+
+                <button onclick="accountApp.loginGoogle()" class="w-full bg-black border border-zinc-800 text-zinc-300 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:border-red-900 hover:text-white transition-all group">
+                    <i class="ph-bold ph-google-logo text-lg group-hover:text-red-500 transition-colors"></i> Google
                 </button>
             </div>
         </div>
 
         <!-- 2. PANEL DE GESTIÓN (Logueado) -->
-        <div id="accountPanel" class="hidden space-y-6">
+        <div id="accountPanel" class="hidden opacity-0 animate-fade-in-up space-y-6">
             
-            <!-- TARJETA DE PERFIL SIMPLIFICADA -->
-            <div class="flex items-center gap-4 px-2">
-                <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 shrink-0">
-                    <span id="avatarText" class="text-xl font-black text-white">?</span>
+            <!-- TARJETA DE PERFIL -->
+            <div class="glass-dark p-6 rounded-3xl flex items-center gap-6 relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-r from-red-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                
+                <div class="w-16 h-16 rounded-full bg-black flex items-center justify-center border-2 border-red-900 shadow-[0_0_20px_rgba(220,38,38,0.2)] shrink-0 relative z-10">
+                    <span id="avatarText" class="text-2xl font-black text-white">?</span>
                 </div>
-                <div class="overflow-hidden">
-                    <h2 id="displayNameDisplay" class="text-lg font-bold text-white truncate">Usuario</h2>
-                    <p id="emailDisplay" class="text-xs text-zinc-500 font-mono truncate">...</p>
+                <div class="overflow-hidden relative z-10">
+                    <h2 id="displayNameDisplay" class="text-2xl font-black text-white truncate tracking-tight">Usuario</h2>
+                    <div class="flex items-center gap-2 mt-1">
+                        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <p id="emailDisplay" class="text-xs text-zinc-500 font-mono truncate">...</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- === ZONA ADMIN (SOLO VISIBLE PARA ADMIN) === -->
-            <div id="adminPanel" class="hidden glass p-5 rounded-3xl border border-red-900/50 bg-red-950/10 space-y-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2">
-                        <i class="ph-fill ph-crown"></i> Admin: Soporte
+            <!-- === ZONA ADMIN === -->
+            <div id="adminPanel" class="hidden glass-dark p-1 rounded-2xl border border-red-600/30 bg-red-950/20">
+                <div class="p-4 border-b border-red-900/30 flex justify-between items-center">
+                    <h3 class="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <i class="ph-fill ph-crown"></i> Admin
                     </h3>
-                    <button onclick="accountApp.loadSupportTickets()" class="text-red-400 hover:text-white">
+                    <button onclick="accountApp.loadSupportTickets()" class="text-red-400 hover:text-white transition-transform hover:rotate-180 duration-500">
                         <i class="ph-bold ph-arrows-clockwise"></i>
                     </button>
                 </div>
-
-                <!-- BUSCADOR DE CORREO TÉCNICO -->
-                <div class="bg-black/40 p-3 rounded-xl border border-red-900/30">
-                    <label class="text-[10px] text-zinc-500 font-bold uppercase mb-1 block">Convertidor ID -> Correo</label>
+                <div class="p-4 space-y-4">
+                    <!-- Buscador -->
                     <div class="flex gap-2">
-                        <input type="text" id="adminIdInput" class="input-modern w-full p-2 text-xs" placeholder="Ingresa ID (ej: 2000)">
-                        <button onclick="accountApp.adminLookupEmail()" class="bg-zinc-800 text-white px-3 rounded-lg text-xs font-bold">VER</button>
+                        <input type="text" id="adminIdInput" class="input-blood w-full p-2 text-xs bg-black/50" placeholder="ID a Correo">
+                        <button onclick="accountApp.adminLookupEmail()" class="bg-red-900/40 text-red-200 px-3 rounded-lg text-xs font-bold hover:bg-red-800">GO</button>
                     </div>
-                    <div id="adminLookupResult" class="mt-2 text-xs font-mono text-emerald-400 hidden select-all"></div>
-                </div>
-                
-                <div id="supportTicketsList" class="space-y-2">
-                    <div class="text-center py-4 text-zinc-600 text-xs">Cargando tickets...</div>
+                    <div id="adminLookupResult" class="text-[10px] font-mono text-red-300 hidden select-all text-center bg-black/30 p-2 rounded"></div>
+                    
+                    <!-- Migrador -->
+                    <div class="border-t border-red-900/30 pt-3">
+                         <label class="text-[9px] text-red-400/60 font-bold uppercase mb-2 block text-center">Migración de Datos</label>
+                         <div class="grid grid-cols-2 gap-2">
+                             <input type="text" id="migOldUid" class="input-blood p-2 text-[10px] text-center" placeholder="UID Viejo">
+                             <input type="text" id="migNewUid" class="input-blood p-2 text-[10px] text-center" placeholder="UID Nuevo">
+                         </div>
+                         <button onclick="accountApp.migrateAccount()" class="w-full mt-2 bg-red-900/50 hover:bg-red-600 text-white text-[10px] font-bold py-2 rounded-lg transition-colors">EJECUTAR TRANSFERENCIA</button>
+                    </div>
+
+                    <!-- Lista -->
+                    <div id="supportTicketsList" class="pt-2 space-y-2"></div>
                 </div>
             </div>
-            <!-- ============================================ -->
 
-            <!-- CAMBIO DE CONTRASEÑA (PRINCIPAL) -->
-            <div class="glass p-6 rounded-3xl border-l-4 border-l-emerald-500 relative overflow-hidden">
+            <!-- CAMBIO DE CONTRASEÑA -->
+            <div class="glass-dark p-6 rounded-3xl relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 text-red-900/10 text-9xl">
+                    <i class="ph-fill ph-lock-key"></i>
+                </div>
                 <div class="relative z-10">
-                    <div class="mb-5">
-                        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
-                            <i class="ph-fill ph-lock-key text-emerald-500"></i> Nueva Contraseña
-                        </h3>
-                        <p class="text-xs text-zinc-400">Escribe tu nueva contraseña abajo para actualizarla inmediatamente.</p>
-                    </div>
+                    <h3 class="text-xs font-bold text-red-500 uppercase tracking-widest mb-4">Seguridad</h3>
                     
                     <div class="space-y-3">
-                        <input type="password" id="inpNewPass" class="input-modern w-full p-4 text-sm bg-black/50 border-zinc-700 focus:border-emerald-500" placeholder="Mínimo 6 caracteres">
+                        <input type="password" id="inpNewPass" class="input-blood w-full p-4 text-sm" placeholder="Nueva contraseña">
                         
-                        <button onclick="accountApp.changePassword()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-900/20 text-xs tracking-wide">
-                            ACTUALIZAR AHORA
+                        <button onclick="accountApp.changePassword()" class="w-full bg-white text-black hover:bg-zinc-200 font-black py-3 rounded-xl transition-transform hover:scale-[1.02] text-xs tracking-wider">
+                            ACTUALIZAR CREDENCIALES
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- OTROS AJUSTES -->
-            <div class="space-y-3 pt-2">
-                <h3 class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-2">Otras Opciones</h3>
-
-                <!-- Editar Nombre -->
-                <div class="flex gap-2">
-                    <input type="text" id="inpName" class="input-modern w-full p-3 pl-4 text-sm bg-zinc-900/50" placeholder="Nombre visible">
-                    <button onclick="accountApp.updateName()" class="bg-zinc-800 border border-zinc-700 hover:bg-white hover:text-black text-white px-4 rounded-xl transition-colors font-bold text-xs">
-                        GUARDAR
-                    </button>
+            <!-- OPCIONES SECUNDARIAS -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Nombre -->
+                <div class="glass-dark p-4 rounded-2xl flex flex-col gap-2">
+                    <label class="text-[10px] text-zinc-500 font-bold uppercase">Nombre</label>
+                    <input type="text" id="inpName" class="bg-transparent border-b border-zinc-800 text-white text-sm pb-1 focus:border-red-500 outline-none transition-colors" placeholder="Tu nombre">
+                    <button onclick="accountApp.updateName()" class="self-end text-[10px] font-bold text-red-500 hover:text-white transition-colors">GUARDAR</button>
                 </div>
 
-                <!-- Vincular Google -->
-                <div id="googleLinkCard" class="flex justify-between items-center px-4 py-3 rounded-xl bg-zinc-900/30 border border-white/5">
-                    <div class="flex items-center gap-3">
+                <!-- Google -->
+                <div class="glass-dark p-4 rounded-2xl flex flex-col justify-between" id="googleLinkCard">
+                    <div class="flex items-center gap-2 mb-2">
                         <i class="ph-bold ph-google-logo text-zinc-400"></i>
-                        <span class="text-xs font-bold text-zinc-300">Cuenta Google</span>
+                        <span class="text-[10px] text-zinc-500 font-bold uppercase">Google</span>
                     </div>
-                    <button id="btnLinkGoogle" onclick="accountApp.linkGoogle()" class="text-[10px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-wider">
-                        Vincular
-                    </button>
-                    <span id="googleStatusText" class="text-[10px] font-bold text-emerald-500 hidden uppercase tracking-wider flex items-center gap-1">
-                        <i class="ph-bold ph-check"></i> Vinculado
-                    </span>
+                    <button id="btnLinkGoogle" onclick="accountApp.linkGoogle()" class="text-xs font-bold text-white bg-zinc-800 py-1.5 rounded hover:bg-zinc-700 transition-colors">VINCULAR</button>
+                    <span id="googleStatusText" class="hidden text-[10px] text-green-500 font-mono text-center">CONECTADO</span>
                 </div>
             </div>
 
             <!-- LOGOUT -->
-            <div class="pt-6">
-                <button onclick="accountApp.logout()" class="w-full text-zinc-500 hover:text-red-500 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-red-500/20 hover:bg-red-500/10 rounded-xl">
+            <div class="pt-8 text-center">
+                <button onclick="accountApp.logout()" class="text-zinc-600 hover:text-red-500 text-xs font-bold tracking-widest transition-colors flex items-center justify-center gap-2 mx-auto">
                     <i class="ph-bold ph-sign-out"></i> CERRAR SESIÓN
                 </button>
             </div>
@@ -237,7 +308,7 @@
             initializeApp, getAuth, onAuthStateChanged, signOut, updateProfile, updatePassword, 
             signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, 
             GoogleAuthProvider, linkWithPopup, signInWithCustomToken, sendPasswordResetEmail,
-            getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc
+            getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, getDoc, setDoc, writeBatch
         } = window.firebaseImports;
 
         // Configuración segura
@@ -265,10 +336,8 @@
             db = getFirestore(app);
         } catch(e) { console.error("Firebase Init Error", e); }
 
-        // --- ADMIN CONFIG ---
         const ADMIN_EMAIL = "tizorplayer@gmail.com"; 
 
-        // App Logic
         window.accountApp = {
             user: null,
             authMode: 'login',
@@ -285,10 +354,16 @@
                             catch(e) { console.error(e); }
                         }
                         this.renderAuth();
+                        // Ocultar Nav si no hay sesión
+                        document.getElementById('global-nav').classList.remove('nav-visible');
+                        document.getElementById('global-nav').classList.add('nav-hidden');
                     } else {
                         this.user = u;
                         this.renderAccount();
-                        // Si es el admin, cargar tickets
+                        // Mostrar Nav si hay sesión
+                        document.getElementById('global-nav').classList.remove('nav-hidden');
+                        document.getElementById('global-nav').classList.add('nav-visible');
+
                         if (u.email === ADMIN_EMAIL) {
                             document.getElementById('adminPanel').classList.remove('hidden');
                             this.loadSupportTickets();
@@ -299,7 +374,8 @@
                 });
             },
 
-            // --- ADMIN LOGIC ---
+            // --- ADMIN TOOLS ---
+
             adminLookupEmail() {
                 const id = document.getElementById('adminIdInput').value.trim();
                 if(!id) return;
@@ -309,66 +385,87 @@
                 res.classList.remove('hidden');
             },
 
+            async migrateAccount() {
+                const oldUid = document.getElementById('migOldUid').value.trim();
+                const newUid = document.getElementById('migNewUid').value.trim();
+                if(!oldUid || !newUid) return this.toast('Faltan UIDs', 'error');
+
+                try {
+                    const oldUserRef = doc(db, 'artifacts', appId, 'users', oldUid);
+                    const oldSnap = await getDoc(oldUserRef);
+                    if (!oldSnap.exists()) return this.toast('Datos antiguos no encontrados', 'error');
+                    
+                    const newUserRef = doc(db, 'artifacts', appId, 'users', newUid);
+                    await setDoc(newUserRef, oldSnap.data(), { merge: true });
+
+                    const oldLogsRef = collection(db, 'artifacts', appId, 'users', oldUid, 'logs');
+                    const newLogsRef = collection(db, 'artifacts', appId, 'users', newUid, 'logs');
+                    const logsSnap = await getDocs(oldLogsRef);
+                    
+                    const batch = writeBatch(db);
+                    logsSnap.forEach(log => {
+                        const newLogRef = doc(newLogsRef); 
+                        batch.set(newLogRef, log.data());
+                    });
+                    await batch.commit();
+
+                    this.toast('Migración exitosa', 'success');
+                } catch(e) {
+                    console.error(e);
+                    this.toast('Error: ' + e.message, 'error');
+                }
+            },
+
             async loadSupportTickets() {
                 const list = document.getElementById('supportTicketsList');
-                list.innerHTML = '<div class="text-center py-2 text-zinc-500 animate-pulse">Buscando solicitudes...</div>';
-
                 try {
                     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'support_requests'), where('status', '==', 'pending'));
                     const snapshot = await getDocs(q);
                     
                     list.innerHTML = '';
                     if (snapshot.empty) {
-                        list.innerHTML = '<div class="text-center py-2 text-zinc-500 text-[10px]">No hay solicitudes pendientes.</div>';
+                        list.innerHTML = '<div class="text-center py-2 text-zinc-600 text-[10px] italic">Sin tickets pendientes.</div>';
                         return;
                     }
 
                     snapshot.forEach(docSnap => {
                         const data = docSnap.data();
                         const date = new Date(data.createdAt).toLocaleDateString();
-                        
                         list.innerHTML += `
-                            <div class="bg-black/40 border border-red-900/30 p-3 rounded-xl flex justify-between items-center">
+                            <div class="bg-black/40 border border-red-900/30 p-2 rounded-lg flex justify-between items-center mb-2">
                                 <div>
-                                    <div class="text-xs font-bold text-white flex items-center gap-2">
-                                        <i class="ph-bold ph-user text-red-400"></i> ${data.userIdentifier}
+                                    <div class="text-[10px] font-bold text-red-200 flex items-center gap-1">
+                                        <i class="ph-bold ph-user"></i> ${data.userIdentifier}
                                     </div>
-                                    <div class="text-[10px] text-zinc-500">${date} - Recuperar Pass</div>
+                                    <div class="text-[9px] text-zinc-600">${date}</div>
                                 </div>
-                                <button onclick="accountApp.resolveTicket('${docSnap.id}', '${data.userIdentifier}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors">
-                                    RESUELTO
+                                <button onclick="accountApp.resolveTicket('${docSnap.id}', '${data.userIdentifier}')" class="bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white text-[9px] font-bold px-2 py-1 rounded transition-colors">
+                                    OK
                                 </button>
                             </div>
                         `;
                     });
 
                 } catch(e) {
-                    console.error(e);
-                    list.innerHTML = '<div class="text-center text-red-500 text-[10px]">Error cargando tickets</div>';
+                    list.innerHTML = '<div class="text-center text-red-900 text-[10px]">Error</div>';
                 }
             },
 
             async resolveTicket(ticketId, userId) {
-                if(!confirm(`¿Confirmas que ya ayudaste al usuario ${userId} (ej. reseteando su contraseña en la consola de Firebase)?`)) return;
-
+                if(!confirm(`¿Ticket resuelto para ${userId}?`)) return;
                 try {
-                    // Marcar como resuelto (borrar o actualizar estado)
-                    // Aquí lo borramos para limpiar la lista
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'support_requests', ticketId));
-                    this.toast('Ticket cerrado correctamente', 'success');
-                    this.loadSupportTickets(); // Recargar lista
-                } catch(e) {
-                    this.toast('Error al cerrar ticket', 'error');
-                }
+                    this.toast('Cerrado', 'success');
+                    this.loadSupportTickets();
+                } catch(e) { this.toast('Error', 'error'); }
             },
 
-            // --- RENDER ---
+            // --- RENDER & AUTH ---
             
             renderAuth() {
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('accountPanel').classList.add('hidden');
                 document.getElementById('authPanel').classList.remove('hidden');
-                document.getElementById('mainHeader').classList.remove('hidden');
             },
 
             renderAccount() {
@@ -378,7 +475,6 @@
                 
                 const u = this.user;
                 const displayName = u.displayName || 'Usuario';
-                
                 document.getElementById('avatarText').textContent = displayName.charAt(0).toUpperCase();
                 document.getElementById('displayNameDisplay').textContent = displayName;
                 document.getElementById('emailDisplay').textContent = u.email || 'Acceso por ID';
@@ -387,15 +483,12 @@
                 const providers = u.providerData.map(p => p.providerId);
                 const hasGoogle = providers.includes('google.com');
 
-                const btnLinkGoogle = document.getElementById('btnLinkGoogle');
-                const googleStatus = document.getElementById('googleStatusText');
-                
                 if (hasGoogle) {
-                    btnLinkGoogle.classList.add('hidden');
-                    googleStatus.classList.remove('hidden');
+                    document.getElementById('btnLinkGoogle').classList.add('hidden');
+                    document.getElementById('googleStatusText').classList.remove('hidden');
                 } else {
-                    btnLinkGoogle.classList.remove('hidden');
-                    googleStatus.classList.add('hidden');
+                    document.getElementById('btnLinkGoogle').classList.remove('hidden');
+                    document.getElementById('googleStatusText').classList.add('hidden');
                 }
             },
 
@@ -406,159 +499,123 @@
                 const tabRegister = document.getElementById('tabRegister');
                 const forgotBtn = document.getElementById('forgotPassContainer');
 
+                // Clases activas vs inactivas
+                const activeClass = "bg-red-900/30 text-red-100 border border-red-900/50 shadow-[0_0_15px_rgba(220,38,38,0.2)]";
+                const inactiveClass = "text-zinc-600 hover:text-zinc-300 border border-transparent";
+
                 if (mode === 'login') {
                     btn.textContent = 'ENTRAR';
-                    tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
-                    tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
+                    tabLogin.className = `flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${activeClass}`;
+                    tabRegister.className = `flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${inactiveClass}`;
                     forgotBtn.classList.remove('hidden');
                 } else {
                     btn.textContent = 'REGISTRARME';
-                    tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-zinc-800 text-white transition-all';
-                    tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-zinc-500 hover:text-white transition-all';
+                    tabRegister.className = `flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${activeClass}`;
+                    tabLogin.className = `flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${inactiveClass}`;
                     forgotBtn.classList.add('hidden');
                 }
             },
 
-            // --- NEW: AUTH PREVIEW (ID -> EMAIL) ---
             updateAuthPreview() {
                 const val = document.getElementById('authInput').value;
                 const previewBox = document.getElementById('emailPreview');
                 const previewText = document.getElementById('emailPreviewText');
-
                 if (val && !val.includes('@')) {
                     previewBox.classList.remove('hidden');
                     previewText.textContent = `${val}@godsplan.site`;
-                } else {
-                    previewBox.classList.add('hidden');
-                }
+                } else { previewBox.classList.add('hidden'); }
             },
 
             async handleAuth() {
                 const inputVal = document.getElementById('authInput').value.trim();
                 const pass = document.getElementById('authPass').value;
+                if (!inputVal || !pass) return this.toast('Faltan datos', 'error');
 
-                if (!inputVal || !pass) return this.toast('Completa los campos', 'error');
-
-                // Si no tiene @, autocompletamos con el dominio ficticio
                 let email = inputVal;
-                if (!email.includes('@')) {
-                    email = `${inputVal}@godsplan.site`; 
-                }
+                if (!email.includes('@')) email = `${inputVal}@godsplan.site`; 
 
                 try {
                     if (this.authMode === 'login') {
                         await signInWithEmailAndPassword(auth, email, pass);
                     } else {
                         await createUserWithEmailAndPassword(auth, email, pass);
-                        this.toast('¡Cuenta creada!', 'success');
+                        this.toast('¡Bienvenido!', 'success');
                     }
                 } catch(e) {
-                    console.error(e);
-                    let msg = 'Error de autenticación';
-                    if (e.code === 'auth/email-already-in-use') msg = 'Este ID/Correo ya está registrado';
-                    if (e.code === 'auth/wrong-password') msg = 'Contraseña incorrecta';
-                    if (e.code === 'auth/user-not-found') msg = 'Usuario no encontrado';
-                    if (e.code === 'auth/invalid-email') msg = 'Formato de correo o ID inválido';
+                    let msg = 'Error de acceso';
+                    if (e.code === 'auth/email-already-in-use') msg = 'ID/Correo ocupado';
+                    if (e.code === 'auth/wrong-password') msg = 'Clave incorrecta';
+                    if (e.code === 'auth/user-not-found') msg = 'Usuario no existe';
                     this.toast(msg, 'error');
                 }
             },
 
             async recoverPassword() {
                 const inputVal = document.getElementById('authInput').value.trim();
-                if (!inputVal) return this.toast('Escribe tu Correo o ID arriba para solicitar ayuda', 'error');
-
+                if (!inputVal) return this.toast('Escribe tu ID o Correo arriba primero', 'error');
                 const isEmail = inputVal.includes('@');
 
                 if (isEmail) {
-                    // Flujo 1: Correo Real
                     try {
                         await sendPasswordResetEmail(auth, inputVal);
-                        this.toast('Correo de recuperación enviado.', 'success');
-                    } catch(e) {
-                        if (e.code === 'auth/user-not-found') this.toast('No existe cuenta con este correo', 'error');
-                        else this.toast('Error: ' + e.code, 'error');
-                    }
+                        this.toast('Correo enviado', 'success');
+                    } catch(e) { this.toast('Error: ' + e.code, 'error'); }
                 } else {
-                    // Flujo 2: ID Ficticio -> Ticket en BD
-                    if (!confirm(`¿Solicitar ayuda para recuperar la contraseña del usuario "${inputVal}"?`)) return;
-
+                    if (!confirm(`¿Pedir ayuda a soporte para recuperar acceso de: "${inputVal}"?`)) return;
                     try {
                         const ticketRef = collection(db, 'artifacts', appId, 'public', 'data', 'support_requests');
-                        await addDoc(ticketRef, {
-                            type: 'password_reset',
-                            userIdentifier: inputVal,
-                            status: 'pending',
-                            createdAt: new Date().toISOString()
-                        });
-                        this.toast('Solicitud enviada. El administrador te contactará.', 'success');
-                    } catch(e) {
-                        console.error(e);
-                        this.toast('Error de conexión al enviar solicitud.', 'error');
-                    }
+                        await addDoc(ticketRef, { type: 'password_reset', userIdentifier: inputVal, status: 'pending', createdAt: new Date().toISOString() });
+                        this.toast('Solicitud enviada', 'success');
+                    } catch(e) { this.toast('Error de red', 'error'); }
                 }
             },
 
             async loginGoogle() {
-                const provider = new GoogleAuthProvider();
-                try {
-                    await signInWithPopup(auth, provider);
-                } catch(e) {
-                    console.error(e);
-                    this.toast('Error al iniciar con Google', 'error');
-                }
-            },
-
-            async linkGoogle() {
-                const provider = new GoogleAuthProvider();
-                try {
-                    await linkWithPopup(this.user, provider);
-                    this.toast('¡Vinculado con éxito!', 'success');
-                    this.renderAccount(); 
-                } catch(e) {
-                    this.toast('Error al vincular: ' + e.code, 'error');
-                }
-            },
-
-            async updateName() {
-                const newName = document.getElementById('inpName').value.trim();
-                if (!newName) return this.toast('El nombre no puede estar vacío', 'error');
-
-                try {
-                    await updateProfile(this.user, { displayName: newName });
-                    this.toast('Perfil actualizado', 'success');
-                    this.renderAccount();
-                } catch(e) { this.toast('Error al actualizar', 'error'); }
+                try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+                catch(e) { this.toast('Error Google', 'error'); }
             },
 
             async changePassword() {
                 const newPass = document.getElementById('inpNewPass').value;
                 if (!newPass || newPass.length < 6) return this.toast('Mínimo 6 caracteres', 'error');
-
                 try {
                     await updatePassword(this.user, newPass);
-                    this.toast('¡Contraseña actualizada!', 'success');
+                    this.toast('¡Clave actualizada!', 'success');
                     document.getElementById('inpNewPass').value = ''; 
                 } catch(e) {
-                    if (e.code === 'auth/requires-recent-login') {
-                        this.toast('Por seguridad, cierra sesión y vuelve a entrar.', 'error');
-                    } else {
-                        this.toast('Error: ' + e.message, 'error');
-                    }
+                    if (e.code === 'auth/requires-recent-login') this.toast('Reloguea para cambiar clave', 'error');
+                    else this.toast('Error: ' + e.message, 'error');
                 }
             },
 
-            async logout() {
+            async updateName() {
+                const newName = document.getElementById('inpName').value.trim();
+                if (!newName) return;
                 try {
-                    await signOut(auth);
-                    window.location.reload();
-                } catch(e) { this.toast('Error al salir', 'error'); }
+                    await updateProfile(this.user, { displayName: newName });
+                    this.toast('Nombre guardado', 'success');
+                    this.renderAccount();
+                } catch(e) { this.toast('Error', 'error'); }
+            },
+
+            async linkGoogle() {
+                try {
+                    await linkWithPopup(this.user, new GoogleAuthProvider());
+                    this.toast('Vinculado', 'success');
+                    this.renderAccount();
+                } catch(e) { this.toast('Error vinculando', 'error'); }
+            },
+
+            async logout() {
+                try { await signOut(auth); window.location.reload(); } 
+                catch(e) { this.toast('Error', 'error'); }
             },
 
             toast(msg, type = 'info') {
                 const con = document.getElementById('toast-container');
                 const el = document.createElement('div');
                 el.className = 'toast';
-                const icon = type === 'success' ? 'ph-check-circle text-emerald-400' : (type === 'error' ? 'ph-warning text-red-400' : 'ph-info text-blue-400');
+                const icon = type === 'success' ? 'ph-check-circle text-emerald-400' : 'ph-warning text-red-400';
                 el.innerHTML = `<i class="ph-fill ${icon} text-xl"></i><span class="text-xs font-bold text-white">${msg}</span>`;
                 con.appendChild(el);
                 setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
