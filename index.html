@@ -311,19 +311,27 @@
             getFirestore, doc, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, getDoc, setDoc, writeBatch
         } = window.firebaseImports;
 
-        // Configuración segura
-        let firebaseConfig = {};
+        // --- FIX: CONFIGURACIÓN SEGURA PARA EVITAR ERRORES DE AUTH ---
+        // Configuración obligatoria con fallback explícito
+        const fallbackConfig = {
+            apiKey: "AIzaSyCrHBz94UtgiaYntHCYhC5jNa6auUI63vQ",
+            authDomain: "god-s-plan-d737b.firebaseapp.com",
+            projectId: "god-s-plan-d737b",
+            storageBucket: "god-s-plan-d737b.firebasestorage.app",
+            messagingSenderId: "458198314028",
+            appId: "1:458198314028:web:d62b24cee2d19ee5b47589"
+        };
+
+        let firebaseConfig = fallbackConfig;
         try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
-            } else {
-                firebaseConfig = {
-                    apiKey: "AIzaSyCrHBz94UtgiaYntHCYhC5jNa6auUI63vQ",
-                    authDomain: "god-s-plan-d737b.firebaseapp.com",
-                    projectId: "god-s-plan-d737b"
-                };
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const envConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                if (envConfig && envConfig.apiKey) {
+                    firebaseConfig = envConfig;
+                }
             }
         } catch(e) { console.error(e); }
+        // ----------------------------------------------------------------
 
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'godsplan-local';
@@ -374,7 +382,7 @@
                 });
             },
 
-            // --- ADMIN TOOLS ---
+            // --- ADMIN TOOLS (MIGRACIÓN ACTUALIZADA) ---
 
             adminLookupEmail() {
                 const id = document.getElementById('adminIdInput').value.trim();
@@ -392,21 +400,17 @@
 
                 this.toast('Iniciando búsqueda en colección RAÍZ godsPlanData...', 'info');
 
-                const targetAppId = appId; 
-                // Definimos la colección de destino explícitamente a la raíz 'godsPlanData' para que coincida con la estructura antigua
-                const targetCollection = 'godsPlanData'; 
                 const batch = writeBatch(db);
                 let opsCount = 0;
 
                 try {
                     // 1. Migrar Configuración (Documento Padre en Raíz)
-                    // Buscar en la raíz directamente
                     const oldUserRef = doc(db, 'godsPlanData', oldUid);
                     const oldSnap = await getDoc(oldUserRef);
                     
                     if (oldSnap.exists()) {
                         console.log("Datos encontrados en godsPlanData raíz");
-                        const newUserRef = doc(db, 'godsPlanData', newUid); // Escribir en raíz también
+                        const newUserRef = doc(db, 'godsPlanData', newUid);
                         batch.set(newUserRef, oldSnap.data(), { merge: true });
                         opsCount++;
                     } else {
@@ -433,7 +437,7 @@
                     }
 
                     await batch.commit();
-                    this.toast(`Migración ÉXITOSA. ${opsCount} registros transferidos a 'godsPlanData'.`, 'success');
+                    this.toast(`Migración ÉXITOSA. ${opsCount} registros transferidos.`, 'success');
 
                 } catch(e) {
                     console.error(e);
@@ -491,8 +495,6 @@
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('accountPanel').classList.add('hidden');
                 document.getElementById('authPanel').classList.remove('hidden');
-                // Ocultar header solo si se desea
-                // document.getElementById('mainHeader').classList.remove('hidden');
             },
 
             renderAccount() {
